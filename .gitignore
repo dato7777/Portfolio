@@ -1,0 +1,18 @@
+# Python / FastAPI
+__pycache__/
+*.pyc
+.venv/
+.env
+*.sqlite
+*.db
+backend_portfolio/quiz.db
+
+# Node / Vite
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# OS / Editor
+.DS_Store
+.vscode/

@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body {
+  font-family: 'Roboto', sans-serif;
+}
+.flip-container {
+  perspective: 1000px;
+}
+
+.flip-card {
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.flip-container:hover .flip-card {
+  transform: rotateX(180deg);
+}
+/* Prevent layout shift when scrollbar appears */
+html {
+  scrollbar-gutter: stable;
+}
+@keyframes loadingFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+.loading-bar {
+  animation: loadingFill 3s ease-in-out forwards;
+  position: relative;
+}
+
