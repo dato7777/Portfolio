@@ -61,7 +61,7 @@ def sanitize_item(item: dict):
     """
     Ensure:
       - options are 4 plain strings (no labels)
-      - answer is exactly one of those strings (map from A/B/C/D if needed)
+      - answer is exactly one of those strings 
     Return cleaned dict or None.
     """
     if not isinstance(item, dict):
