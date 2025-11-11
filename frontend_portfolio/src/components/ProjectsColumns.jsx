@@ -108,10 +108,8 @@ export default function ProjectsColumns({
   // 🎯 define clickable project links
   const projectLinks = {
     "QuizProAI": "/projects/quizproai",
-    "Smart File Organizer": "/projects/fileorganizer",
-    "RainFella Shopify Store": "/projects/rainfella",
-    "Rebar Import Simulation": "/projects/rebarsim",
-    "Portfolio Website": "/projects/portfolio",
+    "Weather": "/projects/weather",
+    
   };
 
   return (

@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from backend_portfolio.routers.Projects import quizproai
 from backend_portfolio.routers import about, home # ✅ 'routers' is the folder, 'about' is the file
 from fastapi.middleware.cors import CORSMiddleware
 from backend_portfolio.routers.Projects.quizproai import router as quizproai_router
@@ -8,7 +7,7 @@ from sqlmodel import SQLModel
 from backend_portfolio.db import engine
 from backend_portfolio.routers.Projects import models as quiz_models
 from backend_portfolio.routers.Projects import quizproai
-
+from backend_portfolio.routers.Projects.weather import router as weather_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     SQLModel.metadata.create_all(engine)  # auto-init tables
@@ -26,4 +25,5 @@ app.add_middleware(
 app.include_router(home.router)  # ✅ This line is correct
 app.include_router(about.router)  # ✅ This line is correct
 app.include_router(quizproai_router)
+app.include_router(weather_router)
 

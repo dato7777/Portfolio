@@ -4,6 +4,7 @@ import Home from "./pages/home";
 import MyNavbar from "./components/Navbar"; // This is your Material Tailwind navbar
 import Projects from "./pages/projects/projects";
 import QuizProAI from "./pages/projects/QuizProAI";
+import Weather from "./pages/projects/weather";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/quizProAi" element={<QuizProAI />} />
+          <Route path="/projects/weather" element={< Weather/>} />
 
           {/* Add more routes like /projects, /contact later */}
         </Routes>

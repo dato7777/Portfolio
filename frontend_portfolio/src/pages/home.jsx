@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import LetterReveal from "../components/LetterReveal";
 import SkillsColumns from "../components/SkillsColumns";
 import ProjectsColumns from "../components/ProjectsColumns";
+
 export default function HomeInspired() {
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem("prefersDark");
@@ -25,7 +26,7 @@ export default function HomeInspired() {
 
   const PROJECT_TAGS = [
     "QuizProAI",
-    "Smart File Organizer"
+    "Weather"
     
   ];
 
