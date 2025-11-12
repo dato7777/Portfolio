@@ -67,24 +67,32 @@ export default function QuizProAI() {
     };
   }, [loading]);
 
-  const fetchQuestions = async (category, lang) => {
-    setLoading(true);
-    try {
-      const res = await axios.post(
-        "http://127.0.0.1:8000/quizproai/generate-questions/",
-        { category, language: lang },
-        { headers: { "Content-Type": "application/json" } }
-      );
+ const fetchQuestions = async (category, lang) => {
+  setLoading(true);
+  setProgress(0);
+  try {
+    const res = await axios.post(
+      "http://127.0.0.1:8000/quizproai/generate-questions/",
+      { category, language: lang },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    // Force the bar to 100% just before we reveal questions
+    setProgress(100);
+
+    // tiny delay so users actually see 100%
+    setTimeout(() => {
       const data = JSON.parse(res.data);
       setQuestions(data);
-    } catch (err) {
-      const msg = err?.response?.data?.detail || "Could not prepare questions. Try again later.";
-      alert(msg); // 502 etc will show here – this is a backend problem
-      resetQuiz();
-    } finally {
       setLoading(false);
-    }
-  };
+    }, 150);
+  } catch (err) {
+    const msg = err?.response?.data?.detail || "Could not prepare questions. Try again later.";
+    alert(msg);
+    resetQuiz();
+  }
+};
+
 
   const handleCategoryClick = (category) => {
     if (loading) return;

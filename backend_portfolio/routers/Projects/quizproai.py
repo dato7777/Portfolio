@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from .models import Question
 from backend_portfolio.db import engine
 
-import os, json, re, datetime
+import os, json, re, datetime, random  # 👈 random added
 
 load_dotenv()
 router = APIRouter(prefix="/quizproai")
@@ -16,12 +16,16 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # ----------------- request model -----------------
 class CategoryRequest(BaseModel):
     category: str
-    language: str  # 👈 new language field
+    language: str
 
 # ----------------- helpers -----------------
 FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 LABEL_RE = re.compile(r'^\s*([A-Da-d])[\.\)\:\-]\s*(.*)$')
 BAD_CATEGORIES = {"test", "asdf", "qwerty", "random", "lorem", "nothing", "idk", "misc"}
+
+def bucket(category: str, language: str) -> str:
+    """Namespace pools by category+language (so 'History::English' != 'History::Russian')."""
+    return f"{category.strip()}::{language.strip()}"
 
 def is_viable_category(cat: str) -> bool:
     if not cat:
@@ -39,7 +43,6 @@ def is_viable_category(cat: str) -> bool:
     return True
 
 def extract_json_array(text: str) -> str:
-    """Strip ``` fences if present."""
     m = FENCE.search(text or "")
     return (m.group(1) if m else (text or "")).strip()
 
@@ -56,7 +59,6 @@ def strip_label(text: str) -> str:
     return m.group(2).strip() if m and m.group(2) else text.strip()
 
 def sanitize_item(item: dict):
-    """Ensure clean structure for each quiz question."""
     if not isinstance(item, dict):
         return None
     level = item.get("level")
@@ -89,19 +91,19 @@ def sanitize_item(item: dict):
         "answer": ans_text,
     }
 
-def get_unused(session: Session, category: str, limit: int = 5):
+def get_unused(session: Session, cat_key: str, limit: int = 5):
     stmt = (
         select(Question)
-        .where(Question.category == category, Question.is_used == False)
+        .where(Question.category == cat_key, Question.is_used == False)
         .order_by(Question.id)
         .limit(limit)
     )
     return list(session.exec(stmt))
 
-def get_all_norms(session: Session, category: str, cap: int = 2000) -> list[str]:
+def get_all_norms(session: Session, cat_key: str, cap: int = 2000) -> list[str]:
     stmt = (
         select(Question.normalized_question)
-        .where(Question.category == category)
+        .where(Question.category == cat_key)
         .order_by(Question.id.desc())
         .limit(cap)
     )
@@ -115,22 +117,32 @@ def mark_used(session: Session, rows: list[Question]) -> None:
         session.add(q)
     session.commit()
 
-def insert_batch(session: Session, category: str, items: list[dict]) -> int:
-    existing = set(get_all_norms(session, category, cap=10000))
+def insert_batch(session: Session, cat_key: str, items: list[dict]) -> int:
+    """Also shuffles options server-side to avoid answer-position bias."""
+    existing = set(get_all_norms(session, cat_key, cap=10000))
     added = 0
     for it in items:
         cleaned = sanitize_item(it)
         if not cleaned:
             continue
+
+        # 🔀 Shuffle options to avoid model bias for positions
+        opts = cleaned["options"][:]
+        random.shuffle(opts)
+        # answer is the option text itself, so it remains valid after shuffle
+        if cleaned["answer"] not in opts:
+            # extremely rare, but defensive:
+            opts = cleaned["options"]
+
         nq = norm(cleaned["question"])
         if not nq or nq in existing:
             continue
         session.add(
             Question(
-                category=category,
+                category=cat_key,
                 level=int(cleaned["level"]),
                 question=cleaned["question"],
-                options_json=json.dumps(cleaned["options"], ensure_ascii=False),
+                options_json=json.dumps(opts, ensure_ascii=False),
                 correct_answer=cleaned["answer"],
                 normalized_question=nq,
                 is_used=False,
@@ -141,9 +153,7 @@ def insert_batch(session: Session, category: str, items: list[dict]) -> int:
     session.commit()
     return added
 
-# ----------------- multilingual generation -----------------
 def build_prompt_10(category: str, language: str, banlist: list[str]) -> str:
-    """Builds multilingual OpenAI prompt"""
     ban_text = "\n".join(f"- {b}" for b in banlist[:150]) if banlist else "(no prior items)"
     return f"""
 Return ONLY a JSON array of 10 items (no commentary, no markdown fences).
@@ -157,26 +167,27 @@ Each item must be structured as:
 }}
 
 Write everything (questions, options, and answers) in **{language}**.
+Randomize the order of the 4 options for each question.
 
 Category: "{category}"
 
 Strict rules:
-- Levels must be integers 1..10 (unique per question)
-- The four options must be distinct, concise, and UNLABELED.
+- Levels must be integers 1..10 (unique per question).
+- Options must be distinct, concise, and UNLABELED.
 - Exactly ONE correct answer, identical to one of the options.
 - No 'All of the above' / 'None of the above'.
 - Make all 10 questions mutually different.
-- DO NOT repeat or paraphrase any of these previously used questions:
+- DO NOT repeat or paraphrase any of these previously used questions (normalize case/punctuation when checking):
 {ban_text}
 
 Quality check BEFORE you output:
 - Verify each "answer" appears verbatim in "options".
 """
 
-def generate_10_and_store(session: Session, category: str, language: str) -> int:
-    """Generate 10 questions in chosen language and save."""
-    banlist = get_all_norms(session, category, cap=1000)
-    prompt = build_prompt_10(category, language, banlist)
+def generate_10_and_store(session: Session, cat_key: str, category_label: str, language: str) -> int:
+    """Generate 10 questions in chosen language and save under the bucket key."""
+    banlist = get_all_norms(session, cat_key, cap=1000)
+    prompt = build_prompt_10(category_label, language, banlist)
 
     resp = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -202,18 +213,17 @@ def generate_10_and_store(session: Session, category: str, language: str) -> int
         if start != -1 and end != -1 and end > start:
             text = raw[start : end + 1].strip()
 
-    # 3) Try to parse JSON
+    # 3) Parse JSON
     try:
         items = json.loads(text)
         if not isinstance(items, list):
             raise ValueError(f"Expected a list, got {type(items)}")
     except Exception as e:
-        # helpful debug print to backend logs
         print("🔴 Raw model output:\n", raw[:1000])
         print("🔴 Parsed text candidate:\n", text[:1000])
         raise HTTPException(status_code=502, detail=f"Bad JSON from model: {e}")
 
-    return insert_batch(session, category, items)
+    return insert_batch(session, cat_key, items)
 
 # ----------------- endpoint -----------------
 @router.post("/generate-questions/")
@@ -223,15 +233,15 @@ async def generate_questions(req: CategoryRequest):
 
     if not is_viable_category(category):
         raise HTTPException(status_code=400, detail="Please enter a valid category (3–40 letters).")
-    if not category:
-        raise HTTPException(status_code=400, detail="Category required")
+
+    cat_key = bucket(category, language)   # 👈 namespace the pool
 
     with Session(engine) as session:
-        unused = get_unused(session, category, limit=5)
+        unused = get_unused(session, cat_key, limit=5)
 
         if len(unused) < 5:
-            generate_10_and_store(session, category, language)
-            unused = get_unused(session, category, limit=5)
+            generate_10_and_store(session, cat_key, category, language)
+            unused = get_unused(session, cat_key, limit=5)
 
         if len(unused) == 0:
             raise HTTPException(status_code=502, detail="Could not prepare questions. Try again later.")

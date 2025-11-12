@@ -5,6 +5,7 @@ import MyNavbar from "./components/Navbar"; // This is your Material Tailwind na
 import Projects from "./pages/projects/projects";
 import QuizProAI from "./pages/projects/QuizProAI";
 import Weather from "./pages/projects/weather";
+import ScrollToTop from "./pages/projects/ScrollToTop";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       {/* Keep navbar outside of container to avoid max-width conflicts */}
       <MyNavbar />
       <div className="max-w-screen-xl mx-auto px-4 mt-6">
+        {/* <ScrollToTop /> */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />

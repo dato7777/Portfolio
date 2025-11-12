@@ -4,7 +4,7 @@ import requests, os, json, random, asyncio
 from dotenv import load_dotenv
 from .continents import CONTINENT_REGIONS
 import pycountry
-
+from functools import lru_cache
 
 load_dotenv()
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -102,4 +102,66 @@ async def get_extremes(continent: str, region: str | None = Query(None)):
         "coldest": coldest,
         "hottest": hottest,
         "sampled_cities": len(results)
+    }
+@router.get("/city")
+def get_city_weather(q: str = Query(..., min_length=1, description="City name, e.g., 'Paris' or 'Paris, FR'")):
+    """
+    Resolve a city name to coordinates via OpenWeather Geocoding API, then fetch current weather.
+    Returns: { city, country, lat, lon, temp, humidity, wind, description, icon }
+    """
+    if not API_KEY:
+        raise HTTPException(status_code=500, detail="Server missing OPENWEATHER_API_KEY")
+
+    # 1) Geocode
+    try:
+        geo = requests.get(
+            "http://api.openweathermap.org/geo/1.0/direct",
+            params={"q": q, "limit": 1, "appid": API_KEY},
+            timeout=8,
+        )
+    except Exception:
+        raise HTTPException(status_code=504, detail="Geocoding request timed out")
+    if geo.status_code != 200:
+        raise HTTPException(status_code=geo.status_code, detail="Geocoding failed")
+    g = geo.json()
+    if not g:
+        raise HTTPException(status_code=404, detail="City not found")
+
+    lat, lon = g[0]["lat"], g[0]["lon"]
+    city_name = g[0].get("name") or q
+    country_code = g[0].get("country")
+    country = get_country_name(country_code) or country_code
+
+    # 2) Weather
+    try:
+        w = requests.get(
+            "http://api.openweathermap.org/data/2.5/weather",
+            params={"lat": lat, "lon": lon, "units": "metric", "appid": API_KEY},
+            timeout=8,
+        )
+    except Exception:
+        raise HTTPException(status_code=504, detail="Weather request timed out")
+    if w.status_code != 200:
+        # pass OpenWeather errors cleanly, incl. 429 rate limit
+        try:
+            msg = w.json().get("message", "Weather fetch failed")
+        except Exception:
+            msg = "Weather fetch failed"
+        raise HTTPException(status_code=w.status_code, detail=msg)
+
+    data = w.json()
+    main = data.get("main", {})
+    wind = data.get("wind", {})
+    wx = (data.get("weather") or [{}])[0]
+
+    return {
+        "city": city_name,
+        "country": country,
+        "lat": lat,
+        "lon": lon,
+        "temp": main.get("temp"),
+        "humidity": main.get("humidity"),
+        "wind": wind.get("speed"),
+        "description": wx.get("description"),
+        "icon": wx.get("icon"),  # e.g. "10d"
     }
