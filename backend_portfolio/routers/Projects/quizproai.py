@@ -13,14 +13,14 @@ load_dotenv()
 router = APIRouter(prefix="/quizproai")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# ----------------- request model -----------------
 class CategoryRequest(BaseModel):
     category: str
+    language: str  # 👈 new language field
 
 # ----------------- helpers -----------------
 FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 LABEL_RE = re.compile(r'^\s*([A-Da-d])[\.\)\:\-]\s*(.*)$')
-
-# simple viability check: length, letters, not a junk/forbidden keyword
 BAD_CATEGORIES = {"test", "asdf", "qwerty", "random", "lorem", "nothing", "idk", "misc"}
 
 def is_viable_category(cat: str) -> bool:
@@ -29,19 +29,17 @@ def is_viable_category(cat: str) -> bool:
     s = cat.strip()
     if len(s) < 3 or len(s) > 40:
         return False
-    # must contain at least 3 letters
     letters = sum(ch.isalpha() for ch in s)
     if letters < 3:
         return False
-    # allow letters, numbers, spaces, common punctuation
     if not re.match(r"^[\w\s\-\&\,\.\(\)\/\+]+$", s, flags=re.UNICODE):
         return False
     if s.lower() in BAD_CATEGORIES:
         return False
     return True
 
-
 def extract_json_array(text: str) -> str:
+    """Strip ``` fences if present."""
     m = FENCE.search(text or "")
     return (m.group(1) if m else (text or "")).strip()
 
@@ -58,12 +56,7 @@ def strip_label(text: str) -> str:
     return m.group(2).strip() if m and m.group(2) else text.strip()
 
 def sanitize_item(item: dict):
-    """
-    Ensure:
-      - options are 4 plain strings (no labels)
-      - answer is exactly one of those strings 
-    Return cleaned dict or None.
-    """
+    """Ensure clean structure for each quiz question."""
     if not isinstance(item, dict):
         return None
     level = item.get("level")
@@ -78,14 +71,11 @@ def sanitize_item(item: dict):
 
     if isinstance(ans, str) and len(ans.strip()) == 1 and ans.upper() in "ABCD":
         idx = "ABCD".index(ans.upper())
-        if not (0 <= idx < 4):
-            return None
-        ans_text = cleaned_opts[idx]
+        ans_text = cleaned_opts[idx] if 0 <= idx < 4 else None
     else:
         ans_text = strip_label(ans) if isinstance(ans, str) else None
 
     if ans_text not in cleaned_opts:
-        # try loose match
         low = [o.lower() for o in cleaned_opts]
         if isinstance(ans_text, str) and ans_text.lower() in low:
             ans_text = cleaned_opts[low.index(ans_text.lower())]
@@ -96,13 +86,13 @@ def sanitize_item(item: dict):
         "level": level,
         "question": q.strip(),
         "options": cleaned_opts,
-        "answer": ans_text
+        "answer": ans_text,
     }
 
 def get_unused(session: Session, category: str, limit: int = 5):
     stmt = (
         select(Question)
-        .where(Question.category == category, Question.is_used == False)  # noqa: E712
+        .where(Question.category == category, Question.is_used == False)
         .order_by(Question.id)
         .limit(limit)
     )
@@ -151,13 +141,14 @@ def insert_batch(session: Session, category: str, items: list[dict]) -> int:
     session.commit()
     return added
 
-def build_prompt_10(category: str, banlist: list[str]) -> str:
+# ----------------- multilingual generation -----------------
+def build_prompt_10(category: str, language: str, banlist: list[str]) -> str:
+    """Builds multilingual OpenAI prompt"""
     ban_text = "\n".join(f"- {b}" for b in banlist[:150]) if banlist else "(no prior items)"
     return f"""
 Return ONLY a JSON array of 10 items (no commentary, no markdown fences).
-Category: "{category}"
 
-Each item must be EXACTLY:
+Each item must be structured as:
 {{
   "level": 1,
   "question": "under 220 chars",
@@ -165,39 +156,61 @@ Each item must be EXACTLY:
   "answer": "any of above options"
 }}
 
+Write everything (questions, options, and answers) in **{language}**.
+
+Category: "{category}"
+
 Strict rules:
-- Levels must be integers 1..10 (roughly increasing across the set).
-- each question must have its uniques level (from 1 to 10)that does not repeat
-- The four options must be distinct, concise, and UNLABELED (no A./B./C./D.).
-- Exactly ONE correct answer.
-- "answer" MUST be IDENTICAL to one of the strings in "options".
+- Levels must be integers 1..10 (unique per question)
+- The four options must be distinct, concise, and UNLABELED.
+- Exactly ONE correct answer, identical to one of the options.
 - No 'All of the above' / 'None of the above'.
 - Make all 10 questions mutually different.
-- DO NOT repeat or paraphrase ANY of these previously used/seen questions (normalize case/punctuation when checking):
+- DO NOT repeat or paraphrase any of these previously used questions:
 {ban_text}
 
 Quality check BEFORE you output:
-- For each item, verify "answer" appears verbatim in its own "options". If not, fix it.
+- Verify each "answer" appears verbatim in "options".
 """
 
-def generate_10_and_store(session: Session, category: str) -> int:
+def generate_10_and_store(session: Session, category: str, language: str) -> int:
+    """Generate 10 questions in chosen language and save."""
     banlist = get_all_norms(session, category, cap=1000)
-    prompt = build_prompt_10(category, banlist)
+    prompt = build_prompt_10(category, language, banlist)
 
     resp = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an expert multilingual quiz question generator."},
+            {"role": "user", "content": prompt},
+        ],
         temperature=0.4,
         top_p=0.95,
         presence_penalty=0.1,
         max_tokens=2200,
     )
-    raw = extract_json_array((resp.choices[0].message.content or "").strip())
+
+    raw = (resp.choices[0].message.content or "").strip()
+
+    # 1) strip ``` fences if present
+    text = extract_json_array(raw)
+
+    # 2) If still not starting with '[', try to isolate the first [...] block
+    if not text.lstrip().startswith("["):
+        start = raw.find("[")
+        end = raw.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            text = raw[start : end + 1].strip()
+
+    # 3) Try to parse JSON
     try:
-        items = json.loads(raw)
+        items = json.loads(text)
         if not isinstance(items, list):
-            raise ValueError("Model did not return a list.")
+            raise ValueError(f"Expected a list, got {type(items)}")
     except Exception as e:
+        # helpful debug print to backend logs
+        print("🔴 Raw model output:\n", raw[:1000])
+        print("🔴 Parsed text candidate:\n", text[:1000])
         raise HTTPException(status_code=502, detail=f"Bad JSON from model: {e}")
 
     return insert_batch(session, category, items)
@@ -206,33 +219,32 @@ def generate_10_and_store(session: Session, category: str) -> int:
 @router.post("/generate-questions/")
 async def generate_questions(req: CategoryRequest):
     category = req.category.strip()
+    language = req.language.strip().capitalize()
+
     if not is_viable_category(category):
-        raise HTTPException(status_code=400, detail="Please enter a more specific, real category (3–40 chars, letters).")
+        raise HTTPException(status_code=400, detail="Please enter a valid category (3–40 letters).")
     if not category:
         raise HTTPException(status_code=400, detail="Category required")
 
     with Session(engine) as session:
-        # Try to serve 5 unused
         unused = get_unused(session, category, limit=5)
 
-        # If not enough in pool, generate 10 and store, then try again
         if len(unused) < 5:
-            generate_10_and_store(session, category)
+            generate_10_and_store(session, category, language)
             unused = get_unused(session, category, limit=5)
 
         if len(unused) == 0:
-            raise HTTPException(status_code=502, detail="Could not prepare questions. Try again.")
+            raise HTTPException(status_code=502, detail="Could not prepare questions. Try again later.")
 
-        # Mark those 5 as used
         mark_used(session, unused)
 
-        # Return to frontend as JSON STRING (keeps your current UI)
         payload = []
         for q in unused:
             payload.append({
                 "level": q.level,
                 "question": q.question,
                 "options": json.loads(q.options_json),
-                "answer": q.correct_answer
+                "answer": q.correct_answer,
             })
+
         return json.dumps(payload, ensure_ascii=False)
