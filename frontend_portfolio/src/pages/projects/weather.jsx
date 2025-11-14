@@ -53,26 +53,26 @@ export default function Weather() {
   const resultsRef = useRef(null);
 
   // ======== Effects: hints =========
- useEffect(() => {
-  if (!cityData?.timezone_id) return;
+  useEffect(() => {
+    if (!cityData?.timezone_id) return;
 
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: cityData.timezone_id,
-  });
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZone: cityData.timezone_id,
+    });
 
-  const update = () => {
-    setDisplayedTime(formatter.format(new Date()));
-  };
+    const update = () => {
+      setDisplayedTime(formatter.format(new Date()));
+    };
 
-  update(); // show instantly
-  const interval = setInterval(update, 1000);
+    update(); // show instantly
+    const interval = setInterval(update, 1000);
 
-  return () => clearInterval(interval);
-}, [cityData]);
+    return () => clearInterval(interval);
+  }, [cityData]);
 
 
   useEffect(() => setMounted(true), []);
@@ -425,12 +425,9 @@ export default function Weather() {
                   </div>
 
                 )}
-                <div>Local Time: {displayedTime}</div>
 
-              </div>
 
-              {/* Right: Details card */}
-              <div className="backdrop-blur-lg bg-white/10 border border-cyan-400/30 rounded-3xl p-8 shadow-[0_0_25px_rgba(0,255,255,0.18)]">
+                {/* ...HERE WE INPUT WHATS ON RIGHT SIDE ...*/}
                 <h4 className="text-xl font-bold mb-4">Details</h4>
                 <ul className="space-y-2 text-sm">
                   <li>
@@ -457,8 +454,52 @@ export default function Weather() {
                     </li>
                   )}
                 </ul>
+              </div>
+
+              {/* Right: Details card */}
+              <div className="backdrop-blur-lg bg-white/10 border border-cyan-400/30 rounded-3xl p-8 shadow-[0_0_25px_rgba(0,255,255,0.18)]">
+                {/* HERE WE INPUT LOCAL TIME... */}
+                {/* EPIC Local Time Block */}
+                <div className="mt-2 mb-4 flex flex-col items-center">
+
+                  {/* Black badge with red text */}
+                  <div className="px-4 py-1 mb-2 bg-black/80 rounded-full border border-red-500 shadow-[0_0_8px_rgba(255,0,0,0.5)]">
+                    <span className="text-red-400 font-semibold tracking-widest text-xs uppercase">
+                      Live Local Time
+                    </span>
+                  </div>
+
+                  {/* Time itself */}
+                  <div className="flex items-end gap-1">
+
+                    {/* Hours + Minutes (bright cyan / visible) */}
+                    <span
+                      className="text-5xl font-extrabold text-cyan-200 drop-shadow-[0_0_10px_rgba(0,255,255,0.4)]"
+                      style={{ fontFamily: "monospace" }}
+                    >
+                      {displayedTime?.split(":")[0] || "--"}:
+                      {displayedTime?.split(":")[1] || "--"}
+                    </span>
+
+                    {/* Seconds (yellow, pulsating only) */}
+                    <motion.span
+                      key={displayedTime}
+                      initial={{ opacity: 0.4, scale: 0.9 }}
+                      animate={{
+                        opacity: [0.4, 1, 0.4],
+                        scale: [0.95, 1.15, 0.95],
+                      }}
+                      transition={{ duration: 1, ease: "easeInOut" }}
+                      className="text-4xl font-extrabold text-yellow-300 drop-shadow-[0_0_12px_rgba(255,255,0,0.6)]"
+                      style={{ fontFamily: "monospace", marginBottom: "4px" }}
+                    >
+                      {displayedTime?.split(":")[2] || "--"}
+                    </motion.span>
+
+                  </div>
+                </div>
                 {/* 3) MiniGlobe */}
-                <div className="flex items-stretch">
+                <div className="w-full flex items-center justify-center mt-2">
                   <ErrorBoundary>
                     {mounted && hasWebGL() ? (() => {
                       const lat = cityData?.lat != null ? parseFloat(cityData.lat) : undefined;

@@ -26,9 +26,16 @@ def get_country_name(code):
 def get_timezone_id(lat, lon):
     url = f"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={lat}&longitude={lon}&localityLanguage=en"
     r = requests.get(url).json()
-    if "timezone" in r and "id" in r["timezone"]:
-        return r["timezone"]["id"]
-    return None
+    data = {
+    # your dictionary here...
+}
+    timezone = None
+    for item in r["localityInfo"]["informative"]:
+        if item.get("description") == "time zone":
+            timezone = item.get("name")
+            break
+    # print(timezone)  # Europe/Moscow
+    return timezone
 
 def get_cities(continent: str, region: str | None = None, max_cities: int = 250):
     """Filter cities by continent + region (lat/lon bounding box)."""
@@ -111,6 +118,58 @@ async def get_extremes(continent: str, region: str | None = Query(None)):
         "hottest": hottest,
         "sampled_cities": len(results)
     }
+def get_historical_avg_temp(lat, lon):
+    """
+    Fetch 10+ years of daily temperature history for this coordinate
+    and compute average temp for today's date across all years.
+    """
+
+    end_year = datetime.utcnow().year
+    start_year = end_year - 10   # use last 10 years
+    today = datetime.utcnow()
+
+    url = "https://api.bigdatacloud.net/data/reverse-geocode-client"
+    headers = {
+        "X-RapidAPI-Key": os.getenv("RAPIDAPI_KEY"),
+        "X-RapidAPI-Host": "meteostat.p.rapidapi.com"
+    }
+
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "start": f"{start_year}-01-01",
+        "end": f"{end_year}-12-31"
+    }
+    
+    try:
+        res = requests.get(url, headers=headers, params=params, timeout=12)
+        data = res.json()
+    except Exception:
+        return None  # fallback gracefully
+
+    if "data" not in data:
+        return None
+
+    # Filter all entries that match today's month/day
+    month = today.month
+    
+    day = today.day
+    
+    matching = [
+        entry["tavg"]
+        for entry in data["data"]
+        if entry.get("tavg") is not None
+        and datetime.fromisoformat(entry["date"]).month == month
+        and datetime.fromisoformat(entry["date"]).day == day
+    ]
+
+    if not matching:
+        return None
+
+    # Average historical temperature for this calendar day
+    return sum(matching) / len(matching)
+
+
 @router.get("/city")
 def get_city_weather(q: str = Query(..., min_length=1, description="City name, e.g., 'Paris' or 'Paris, FR'")):
     """
@@ -139,7 +198,8 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
     city_name = g[0].get("name") or q
     country_code = g[0].get("country")
     country = get_country_name(country_code) or country_code
-
+    
+    
     # 2) Weather
     try:
         w = requests.get(
@@ -162,6 +222,28 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
     wind = data.get("wind", {})
     wx = (data.get("weather") or [{}])[0]
     timezone_id = get_timezone_id(lat, lon)
+    # HERE GOES COMPUTATION OF AVERAGE TEMP FOR GIVEN DAY
+    # Compute historical average temp
+    historical_avg = get_historical_avg_temp(lat, lon)
+# Temperature anomaly
+    anomaly = None
+    interpretation = None
+
+    if historical_avg is not None and main.get("temp") is not None:
+        anomaly = round(main["temp"] - historical_avg, 1)
+
+        if anomaly >= 5:
+            interpretation = f"🔥 {anomaly}°C warmer than usual — significant heat anomaly."
+        elif anomaly >= 2:
+            interpretation = f"🌡️ {anomaly}°C warmer than typical for this day."
+        elif anomaly <= -5:
+            interpretation = f"❄️ {abs(anomaly)}°C colder than usual — significant cold anomaly."
+        elif anomaly <= -2:
+            interpretation = f"🥶 {abs(anomaly)}°C colder than typical."
+        else:
+            interpretation = "Normal temperature for this time of year."
+
+
         # Compute local time using timezone ID
     if timezone_id:
         import pytz
@@ -183,4 +265,7 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
         "icon": wx.get("icon"),  # e.g. "10d",
         "local_time": local_time,
         "timezone_id": timezone_id,
+        "historical_avg_temp": historical_avg,
+        "temp_anomaly": anomaly,
+        "anomaly_text": interpretation
     }
