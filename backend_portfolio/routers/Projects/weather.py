@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from .continents import CONTINENT_REGIONS
 import pycountry
 from functools import lru_cache
+from datetime import datetime, timedelta, timezone
 
 load_dotenv()
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -21,6 +22,13 @@ def get_country_name(code):
         return pycountry.countries.get(alpha_2=code).name
     except:
         return code
+    
+def get_timezone_id(lat, lon):
+    url = f"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={lat}&longitude={lon}&localityLanguage=en"
+    r = requests.get(url).json()
+    if "timezone" in r and "id" in r["timezone"]:
+        return r["timezone"]["id"]
+    return None
 
 def get_cities(continent: str, region: str | None = None, max_cities: int = 250):
     """Filter cities by continent + region (lat/lon bounding box)."""
@@ -153,7 +161,16 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
     main = data.get("main", {})
     wind = data.get("wind", {})
     wx = (data.get("weather") or [{}])[0]
-
+    timezone_id = get_timezone_id(lat, lon)
+        # Compute local time using timezone ID
+    if timezone_id:
+        import pytz
+        tz = pytz.timezone(timezone_id)
+        local_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        # fallback: offset only
+        timezone_offset = data["timezone"]
+        local_time = (datetime.utcnow() + timedelta(seconds=timezone_offset)).strftime("%Y-%m-%d %H:%M:%S")
     return {
         "city": city_name,
         "country": country,
@@ -163,5 +180,7 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
         "humidity": main.get("humidity"),
         "wind": wind.get("speed"),
         "description": wx.get("description"),
-        "icon": wx.get("icon"),  # e.g. "10d"
+        "icon": wx.get("icon"),  # e.g. "10d",
+        "local_time": local_time,
+        "timezone_id": timezone_id,
     }

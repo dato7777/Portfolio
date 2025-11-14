@@ -41,6 +41,7 @@ export default function Weather() {
   const [continent, setContinent] = useState(null);
   const [region, setRegion] = useState(null);
   const [extremes, setExtremes] = useState(null);
+  const [displayedTime, setDisplayedTime] = useState(null);
 
   // city flow
   const [city, setCity] = useState("");
@@ -52,6 +53,28 @@ export default function Weather() {
   const resultsRef = useRef(null);
 
   // ======== Effects: hints =========
+ useEffect(() => {
+  if (!cityData?.timezone_id) return;
+
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: cityData.timezone_id,
+  });
+
+  const update = () => {
+    setDisplayedTime(formatter.format(new Date()));
+  };
+
+  update(); // show instantly
+  const interval = setInterval(update, 1000);
+
+  return () => clearInterval(interval);
+}, [cityData]);
+
+
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (mode === "choose") {
@@ -113,6 +136,7 @@ export default function Weather() {
       setLoading(false);
     }
   };
+
 
   // Enter key to submit city
   const onCityKeyDown = (e) => {
@@ -399,7 +423,10 @@ export default function Weather() {
                     {cityData.lat?.toFixed ? cityData.lat.toFixed(2) : cityData.lat},{" "}
                     {cityData.lon?.toFixed ? cityData.lon.toFixed(2) : cityData.lon}
                   </div>
+
                 )}
+                <div>Local Time: {displayedTime}</div>
+
               </div>
 
               {/* Right: Details card */}
@@ -431,36 +458,36 @@ export default function Weather() {
                   )}
                 </ul>
                 {/* 3) MiniGlobe */}
-              <div className="flex items-stretch">
-  <ErrorBoundary>
-    {mounted && hasWebGL() ? (() => {
-      const lat = cityData?.lat != null ? parseFloat(cityData.lat) : undefined;
-      const lon = cityData?.lon != null ? parseFloat(cityData.lon) : undefined;
-      const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
-      const label = `${cityData?.city ?? ""}${cityData?.country ? ", " + cityData.country : ""}`;
+                <div className="flex items-stretch">
+                  <ErrorBoundary>
+                    {mounted && hasWebGL() ? (() => {
+                      const lat = cityData?.lat != null ? parseFloat(cityData.lat) : undefined;
+                      const lon = cityData?.lon != null ? parseFloat(cityData.lon) : undefined;
+                      const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+                      const label = `${cityData?.city ?? ""}${cityData?.country ? ", " + cityData.country : ""}`;
 
-      return hasCoords ? (
-        <MiniGlobe
-          key={`${lat},${lon}`}     // force remount on new city to reset camera/rotation
-          lat={lat}
-          lon={lon}
-          label={label}
-          height={300}
-        />
-      ) : (
-        <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-white/5 backdrop-blur w-full p-4 text-sm opacity-80">
-          No coordinates for this city.
-        </div>
-      );
-    })() : (
-      <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-white/5 backdrop-blur w-full p-4 text-sm opacity-80">
-        3D globe unavailable on this device/browser.
-      </div>
-    )}
-  </ErrorBoundary>
-</div>
+                      return hasCoords ? (
+                        <MiniGlobe
+                          key={`${lat},${lon}`}     // force remount on new city to reset camera/rotation
+                          lat={lat}
+                          lon={lon}
+                          label={label}
+                          height={300}
+                        />
+                      ) : (
+                        <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-white/5 backdrop-blur w-full p-4 text-sm opacity-80">
+                          No coordinates for this city.
+                        </div>
+                      );
+                    })() : (
+                      <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-white/5 backdrop-blur w-full p-4 text-sm opacity-80">
+                        3D globe unavailable on this device/browser.
+                      </div>
+                    )}
+                  </ErrorBoundary>
+                </div>
               </div>
-              
+
             </motion.div>
           )}
         </>
