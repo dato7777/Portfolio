@@ -9,6 +9,7 @@ useLoader.preload(THREE.TextureLoader, "/textures/earth_day.jpg");
 useLoader.preload(THREE.TextureLoader, "/textures/earth_bump.jpg");
 
 /**********************  HELPERS  *************************/
+// ✅ Your original mapping – this already puts cities in the right position
 function latLonToVec3(lat, lon, radius = 1) {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
@@ -76,14 +77,13 @@ function useCountryBorders(url, radius = 1.002) {
 
 /********************** LABEL LINE *************************/
 function LabelLine({ start, end }) {
-  const ref = useRef();
-
-  const positions = useMemo(() => {
-    return new Float32Array([start.x, start.y, start.z, end.x, end.y, end.z]);
-  }, [start, end]);
+  const positions = useMemo(
+    () => new Float32Array([start.x, start.y, start.z, end.x, end.y, end.z]),
+    [start, end]
+  );
 
   return (
-    <line ref={ref}>
+    <line>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
@@ -112,7 +112,11 @@ function TextSprite({ text = "", position, scale = 0.35 }) {
     ctx.strokeStyle = "rgba(0,255,255,0.4)";
     ctx.lineWidth = 3;
 
-    const w = 360, h = 80, x = 76, y = 70, r = 26;
+    const w = 360,
+      h = 80,
+      x = 76,
+      y = 70,
+      r = 26;
 
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -134,13 +138,12 @@ function TextSprite({ text = "", position, scale = 0.35 }) {
   }, [text]);
 
   useEffect(() => {
-    if (spriteRef.current) {
-      const offset = position.clone();
-      offset.x += 0.28; // offset label to the side  
-      offset.y += 0.15; // slight upward shift  
-      spriteRef.current.position.copy(offset);
-      spriteRef.current.scale.set(scale, scale, 1);
-    }
+    if (!spriteRef.current) return;
+    const offset = position.clone();
+    offset.x += 0.28; // side offset
+    offset.y += 0.15; // slight upward shift
+    spriteRef.current.position.copy(offset);
+    spriteRef.current.scale.set(scale, scale, 1);
   }, [position, scale]);
 
   return (
@@ -209,46 +212,64 @@ function Earth() {
 }
 
 /**********************  MAIN SCENE *************************/
+/**
+ * Key change vs your old version:
+ * - We do NOT rotate the globe to the city anymore.
+ * - We move the CAMERA around the globe to look at the city.
+ * - camera.up = (0, 1, 0) => north is always visually "up".
+ */
 function GlobeScene({ lat, lon, label }) {
   const group = useRef();
   const borders = useCountryBorders("/geo/countries.geojson");
   const { camera } = useThree();
 
   const hasCity = Number.isFinite(lat) && Number.isFinite(lon);
+  const targetCamPos = useRef(new THREE.Vector3(0, 0, 2.5));
 
-  const markerPos = latLonToVec3(lat, lon, 1.002);
-  const labelPos = markerPos.clone();
-  labelPos.x += 0.28;
-  labelPos.y += 0.15;
+  const markerPos = useMemo(
+    () => (hasCity ? latLonToVec3(lat, lon, 1.002) : new THREE.Vector3(0, 0, 1.002)),
+    [lat, lon, hasCity]
+  );
 
-  const targetQuat = useRef(new THREE.Quaternion());
+  const labelPos = useMemo(() => {
+    const p = markerPos.clone();
+    p.x += 0.28;
+    p.y += 0.15;
+    return p;
+  }, [markerPos]);
 
+  // Keep camera's up axis stable: Y = up
   useEffect(() => {
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
-  useFrame((_, delta) => {
-    if (!group.current) return;
-
+  // When city changes, move target camera position over that city
+  useEffect(() => {
     if (!hasCity) {
-      group.current.rotation.y += delta * 0.02;
+      // default idle position
+      targetCamPos.current.set(0, 0, 2.5);
       return;
     }
 
-    const t = 1 - Math.exp(-delta * 4);
-    group.current.quaternion.slerp(targetQuat.current, t);
-  });
-
-  useEffect(() => {
-    if (!hasCity || !group.current) return;
-
     const cityDir = latLonToVec3(lat, lon, 1).normalize();
+    // camera sits "above" the city, a bit away from the globe
+    const desired = cityDir.clone().multiplyScalar(2.3);
+    targetCamPos.current.copy(desired);
+  }, [hasCity, lat, lon]);
 
-    targetQuat.current.copy(
-      new THREE.Quaternion().setFromUnitVectors(cityDir, new THREE.Vector3(0, 0, 1))
-    );
-  }, [lat, lon, hasCity]);
+  useFrame((_, delta) => {
+    // Smoothly move camera toward targetCamPos
+    const t = 1 - Math.exp(-delta * 3); // damping
+    camera.position.lerp(targetCamPos.current, t);
+    camera.lookAt(0, 0, 0);
+    camera.up.set(0, 1, 0);
+
+    // Idle rotation only when no city is selected
+    if (!hasCity && group.current) {
+      group.current.rotation.y += delta * 0.02;
+    }
+  });
 
   return (
     <>
