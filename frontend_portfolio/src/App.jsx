@@ -6,7 +6,8 @@ import Projects from "./pages/projects/projects";
 import QuizProAI from "./pages/projects/QuizProAI";
 import Weather from "./pages/projects/weather";
 import ScrollToTop from "./pages/projects/ScrollToTop";
-
+import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 function App() {
   return (
     <Router>
@@ -18,8 +19,16 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/quizProAi" element={<QuizProAI />} />
-          <Route path="/projects/weather" element={< Weather/>} />
+          <Route
+            path="/projects/quizProAi"
+            element={
+              <ProtectedRoute>
+                <QuizProAI />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/projects/weather" element={< Weather />} />
+          <Route path="/login" element={< Login />} />
 
           {/* Add more routes like /projects, /contact later */}
         </Routes>

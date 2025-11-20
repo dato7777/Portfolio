@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
+// import axios from "axios";
 import { Button } from "@material-tailwind/react";
 import { motion } from "framer-motion";
-
+import api from "../../api/client"
+import UserStatsBar from "../../components/UserStatsBar";
 const categories = ["Geography", "Science", "History", "Technology", "Literature"];
 const letters = ["A", "B", "C", "D"];
 
@@ -25,7 +26,13 @@ export default function QuizProAI() {
   const [progress, setProgress] = useState(0);
 
   const progressIntervalRef = useRef(null);
-
+  const [stats, setStats] = useState({
+    questionsAnswered: 0,
+    correctAnswers: 0,
+    avgTimePerQuestion: null,
+    streak: 0,
+    categories: [],
+  });
   // Reset quiz when finished
   useEffect(() => {
     if (questions.length > 0 && Object.keys(selectedOptions).length === questions.length) {
@@ -71,8 +78,8 @@ export default function QuizProAI() {
   setLoading(true);
   setProgress(0);
   try {
-    const res = await axios.post(
-      "http://127.0.0.1:8000/quizproai/generate-questions/",
+    const res = await api.post(
+      "/quizproai/generate-questions/",
       { category, language: lang },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -126,6 +133,7 @@ export default function QuizProAI() {
         className="absolute inset-0 -z-10 bg-gradient-to-br from-[#010516] via-[#13002b] to-[#000814]"
         style={{ pointerEvents: "none" }}
       />
+      <UserStatsBar stats={stats} />
       <motion.div
         className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(0,255,255,0.08),transparent_70%)]"
         style={{ pointerEvents: "none" }}

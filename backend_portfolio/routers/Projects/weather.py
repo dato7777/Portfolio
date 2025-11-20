@@ -40,10 +40,11 @@ def get_major_cities(country_code, limit=4):
     cities.sort(key=lambda x: x["population"], reverse=True)
     return cities[:limit]
 
-def get_population(name):
+def get_population(name,country_code):
+    cities = [c for c in GEONAMES_CITIES if c["country"] == country_code]
     city_population=0
-    for c_name in GEONAMES_CITIES:
-        if c_name["name"]==name:
+    for c_name in cities:
+        if c_name["name"]in name:
             city_population+=c_name["population"]
     return city_population
 
@@ -219,7 +220,7 @@ def get_city_weather(q: str = Query(..., min_length=1, description="City name, e
     country_code = g[0].get("country")
     country = get_country_name(country_code) or country_code
     major_cities = get_major_cities(country_code)
-    city_population=get_population(city_name)
+    city_population=get_population(city_name,country_code)
     # 2) Weather
     try:
         w = requests.get(

@@ -1,11 +1,12 @@
 # backend_portfolio/routers/Projects/quizproai.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
 from sqlmodel import Session, select
-from .models import Question
+from .models import Question, User
 from backend_portfolio.db import engine
+from backend_portfolio.auth_utils import get_current_user
 
 import os, json, re, datetime, random  # 👈 random added
 
@@ -227,7 +228,8 @@ def generate_10_and_store(session: Session, cat_key: str, category_label: str, l
 
 # ----------------- endpoint -----------------
 @router.post("/generate-questions/")
-async def generate_questions(req: CategoryRequest):
+async def generate_questions(req: CategoryRequest, 
+                             current_user: User = Depends(get_current_user), ):
     category = req.category.strip()
     language = req.language.strip().capitalize()
 

@@ -90,7 +90,7 @@ export default function Weather() {
   const [region, setRegion] = useState(null);
   const [extremes, setExtremes] = useState(null);
   const [displayedTime, setDisplayedTime] = useState(null);
-
+const [showPopulationDisclaimer, setShowPopulationDisclaimer] = useState(false);
   // city flow
   const [city, setCity] = useState("");
   const [cityData, setCityData] = useState(null);
@@ -122,6 +122,25 @@ export default function Weather() {
     return () => clearInterval(interval);
   }, [cityData]);
 
+  const population = cityData?.city_population;
+
+useEffect(() => {
+  // no population → hide disclaimer
+  if (population == null) {
+    setShowPopulationDisclaimer(false);
+    return;
+  }
+
+  // new population → restart timer
+  setShowPopulationDisclaimer(false);
+
+  // match your counter duration (e.g. 2000ms)
+  const id = setTimeout(() => {
+    setShowPopulationDisclaimer(true);
+  }, 5200);
+
+  return () => clearTimeout(id);
+}, [population]);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -426,7 +445,7 @@ export default function Weather() {
                            focus:border-yellow-300 shadow-md transition-all duration-300"
               />
               <motion.button
-                onClick={checkCity}
+                onClick={() => checkCity()}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.97 }}
                 className="px-7 py-3 rounded-full font-bold text-black bg-yellow-300 hover:bg-yellow-400
@@ -532,25 +551,32 @@ export default function Weather() {
                     </motion.div>
                   )}
                 </div>
-                {/* Animated Population Counter */}
-                {cityData.city_population != null && (
-                  <motion.div
-                    className="mt-4 px-4 py-3 rounded-2xl bg-black/30 border border-green-400/40 
-               backdrop-blur shadow-[0_0_12px_rgba(0,255,100,0.3)]
-               flex flex-col items-center"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                  >
-                    <div className="text-green-300 font-semibold text-xs tracking-widest uppercase mb-1">
-                      Population
-                    </div>
+               {/* Animated Population Counter */}
+{cityData.city_population != null && (
+  <motion.div
+    className="mt-4 px-4 py-3 rounded-2xl bg-black/30 border border-green-400/40 
+           backdrop-blur shadow-[0_0_12px_rgba(0,255,100,0.3)]
+           flex flex-col items-center"
+    initial={{ opacity: 0, y: 15 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4 }}
+  >
+    <div className="text-green-300 font-semibold text-xs tracking-widest uppercase mb-1">
+      Population
+    </div>
 
-                    <div className="text-3xl font-bold text-green-200 drop-shadow-[0_0_10px_rgba(0,255,150,0.5)] font-mono">
-                      <PopulationCounter target={cityData.city_population} />
-                    </div>
-                  </motion.div>
-                )}
+    <div className="text-3xl font-bold text-green-200 drop-shadow-[0_0_10px_rgba(0,255,150,0.5)] font-mono">
+      <PopulationCounter target={cityData.city_population} />
+    </div>
+
+    {/* Disclaimer appears only after counter finishes */}
+    {showPopulationDisclaimer && (
+      <div className="mt-1 text-[11px] text-green-100/70 italic text-center">
+        Population data is approximate and may be outdated.
+      </div>
+    )}
+  </motion.div>
+)}
                 {/* ...HERE WE INPUT WHATS ON RIGHT SIDE ...*/}
                 <div className="grid grid-cols-2 gap-4 text-sm mt-8">
 
@@ -818,7 +844,7 @@ export default function Weather() {
                       bg-cyan-900/40 border border-cyan-300/40
                       shadow-[0_0_10px_rgba(0,255,255,0.25)]">
         <span className="text-xs font-semibold tracking-widest text-cyan-200 uppercase text-center block">
-          Major Cities in {cityData.country}
+          Other Major Cities in {cityData.country}
         </span>
       </div>
     </div>
