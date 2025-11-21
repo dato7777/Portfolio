@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from backend_portfolio.routers import about, home # ✅ 'routers' is the folder, 'about' is the file
+# from backend_portfolio.routers import about, home # ✅ 'routers' is the folder, 'about' is the file
 from fastapi.middleware.cors import CORSMiddleware
 from backend_portfolio.routers.Projects.quizproai import router as quizproai_router
 from contextlib import asynccontextmanager
@@ -9,6 +9,7 @@ from backend_portfolio.routers.Projects import models as quiz_models
 from backend_portfolio.routers.Projects import quizproai
 from backend_portfolio.routers.Projects.weather import router as weather_router
 from backend_portfolio.routers.auth import router as auth_router
+from backend_portfolio.routers.Projects.quiz_stats import router as quiz_stats_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,9 +25,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(home.router)  # ✅ This line is correct
-app.include_router(about.router)  # ✅ This line is correct
+# app.include_router(home.router)  # ✅ This line is correct
+# app.include_router(about.router)  # ✅ This line is correct
 app.include_router(quizproai_router)
 app.include_router(auth_router)
 app.include_router(weather_router)
+app.include_router(quiz_stats_router)
 

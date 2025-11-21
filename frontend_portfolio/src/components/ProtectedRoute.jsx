@@ -1,20 +1,16 @@
 // src/components/ProtectedRoute.jsx
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+  // Make sure this only runs in browser
+  const hasWindow = typeof window !== "undefined";
+  const token = hasWindow ? localStorage.getItem("authToken") : null;
 
-  if (!isAuthenticated) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location }} // so we can redirect back after login
-      />
-    );
+  // If no token present, block access
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
 
+  // If token exists, render the protected page
   return children;
 }
