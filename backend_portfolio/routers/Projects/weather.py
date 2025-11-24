@@ -28,7 +28,7 @@ with open(os.path.join(BASE_DIR, "data", "cities5000.txt"), encoding="utf-8") as
         })
 with open(CITY_PATH, "r", encoding="utf-8") as f:
     ALL_CITIES = json.load(f)
-print(GEONAMES_CITIES[0])
+# print(GEONAMES_CITIES[0])
 def get_country_name(code):
     try:
         return pycountry.countries.get(alpha_2=code).name

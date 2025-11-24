@@ -29,7 +29,7 @@ export default function UserStatsBar({ stats }) {
     try {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUsername");
-      
+
     } catch (e) {
       console.warn("Error clearing localStorage on sign-out", e);
     }
@@ -207,19 +207,20 @@ export default function UserStatsBar({ stats }) {
               text-sm text-cyan-50
             "
           >
-            {stats?.categories && stats.categories.length > 0 ? (
+            {stats?.perCategory && stats.perCategory.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {stats.categories.map((cat, idx) => (
+                {stats.perCategory.map((cat) => (
                   <span
-                    key={idx}
+                    key={cat.name}
                     className="
-                      px-3 py-1 rounded-full 
-                      bg-cyan-900/40 border border-cyan-400/60
-                      text-xs font-semibold tracking-wide
-                      shadow-[0_0_10px_rgba(0,255,255,0.2)]
-                    "
+          px-3 py-1 rounded-full 
+          bg-cyan-900/40 border border-cyan-400/60
+          text-xs font-semibold tracking-wide
+          shadow-[0_0_10px_rgba(0,255,255,0.2)]
+        "
                   >
-                    {cat}
+                    {/* Example: Geography – 80% (4/5) */}
+                    {cat.name} – {cat.accuracy}% ({cat.correctAnswers}/{cat.questionsAnswered})
                   </span>
                 ))}
               </div>

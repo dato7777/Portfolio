@@ -36,6 +36,7 @@ export default function QuizProAI() {
     bestStreak: 0,
     categories: [], // array of strings
     avgTimePerQuestion: 0,
+    perCategory: [], 
   });
 
   // ======== Reset quiz when finished ========
@@ -44,7 +45,9 @@ export default function QuizProAI() {
       setTimeout(() => resetQuiz(), 2500);
     }
   }, [selectedOptions, questions]);
-
+  useEffect(() => {
+    getStatsFromBackend();
+  }, []);
   const resetQuiz = () => {
     setQuestions([]);
     setSelectedOptions({});
@@ -88,8 +91,23 @@ export default function QuizProAI() {
         time_spent: timeSpent,
         category,
       });
+      console.log(category)
     } catch (err) {
       console.error("Failed to sync stats:", err);
+    }
+  }
+  async function getStatsFromBackend() {
+    try {
+      const res = await api.get("/quiz/stats/me");
+      // Backend returns QuizStatsOut that matches your state keys
+      setStats((prev) => ({
+        ...prev,
+        ...res.data,
+        // keep totalTimeSeconds as local-only if backend doesn’t send it
+        totalTimeSeconds: prev.totalTimeSeconds,
+      }));
+    } catch (err) {
+      console.error("Failed to get stats from backend:", err);
     }
   }
 
@@ -148,52 +166,52 @@ export default function QuizProAI() {
 
   // ======== Handle answer click (stats + selectedOptions) ========
   const handleOptionClick = (qIndex, option, question) => {
-  const alreadySelected = selectedOptions[qIndex];
-  if (alreadySelected) return;
+    const alreadySelected = selectedOptions[qIndex];
+    if (alreadySelected) return;
 
-  // ⏱ compute time since last event
-  const now = Date.now();
-  const timeSpentSeconds = lastEventTimeRef.current
-    ? (now - lastEventTimeRef.current) / 1000
-    : 0;
-  lastEventTimeRef.current = now;
+    const now = Date.now();
+    const timeSpentSeconds = lastEventTimeRef.current
+      ? (now - lastEventTimeRef.current) / 1000
+      : 0;
+    lastEventTimeRef.current = now;
 
-  const isCorrect = option === question.answer;
-  const categoryName = selectedCategory || customCategory || "Unknown";
+    const isCorrect = option === question.answer;
+    const categoryName = selectedCategory || customCategory || "Unknown";
 
-  setSelectedOptions((prev) => ({ ...prev, [qIndex]: option }));
+    setSelectedOptions((prev) => ({ ...prev, [qIndex]: option }));
 
-  setStats((prev) => {
-    const questionsAnswered = prev.questionsAnswered + 1;
-    const correctAnswers = prev.correctAnswers + (isCorrect ? 1 : 0);
-    const streak = isCorrect ? prev.streak + 1 : 0;
-    const bestStreak = Math.max(prev.bestStreak, streak);
-    const totalTimeSeconds = prev.totalTimeSeconds + timeSpentSeconds;
+    // update UI immediately
+    setStats((prev) => {
+      const questionsAnswered = prev.questionsAnswered + 1;
+      const correctAnswers = prev.correctAnswers + (isCorrect ? 1 : 0);
+      const streak = isCorrect ? prev.streak + 1 : 0;
+      const bestStreak = Math.max(prev.bestStreak, streak);
+      const totalTimeSeconds = prev.totalTimeSeconds + timeSpentSeconds;
 
-    const categories = prev.categories.includes(categoryName)
-      ? prev.categories
-      : [...prev.categories, categoryName];
+      const categories = prev.categories.includes(categoryName)
+        ? prev.categories
+        : [...prev.categories, categoryName];
 
-    const newStats = {
-      ...prev,
-      questionsAnswered,
-      correctAnswers,
-      streak,
-      bestStreak,
-      totalTimeSeconds,
-      categories,
-    };
+      return {
+        ...prev,
+        questionsAnswered,
+        correctAnswers,
+        streak,
+        bestStreak,
+        totalTimeSeconds,
+        categories,
+      };
+    });
 
-    // 🔁 send REAL time to backend
+    // sync with backend and then refresh from backend
     syncStatsWithBackend({
       correct: isCorrect,
       timeSpent: timeSpentSeconds,
       category: categoryName,
-    });
-
-    return newStats;
-  });
-};
+    })
+      .then(() => getStatsFromBackend())
+      .catch((err) => console.error("sync or refresh failed:", err));
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden text-white flex flex-col items-center justify-start px-6 pb-32 pt-24">

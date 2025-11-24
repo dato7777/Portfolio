@@ -220,8 +220,8 @@ def generate_10_and_store(session: Session, cat_key: str, category_label: str, l
         if not isinstance(items, list):
             raise ValueError(f"Expected a list, got {type(items)}")
     except Exception as e:
-        print("🔴 Raw model output:\n", raw[:1000])
-        print("🔴 Parsed text candidate:\n", text[:1000])
+        # print("🔴 Raw model output:\n", raw[:1000])
+        # print("🔴 Parsed text candidate:\n", text[:1000])
         raise HTTPException(status_code=502, detail=f"Bad JSON from model: {e}")
 
     return insert_batch(session, cat_key, items)

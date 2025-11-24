@@ -1,11 +1,9 @@
 # backend_portfolio/routers/quiz_stats.py
 from datetime import datetime
 from typing import List, Optional
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
-
 from backend_portfolio.db import engine
 from backend_portfolio.auth_utils import get_current_user
 from backend_portfolio.routers.Projects.models import User, QuizStats
@@ -24,7 +22,12 @@ class QuizEventIn(BaseModel):
     correct: bool
     time_spent: float  # seconds for this question (or for whole quiz)
     category: str
-
+    
+class CategoryStatOut(BaseModel):
+    name: str
+    questionsAnswered: int
+    correctAnswers: int
+    accuracy: float
 
 class QuizStatsOut(BaseModel):
     questionsAnswered: int
@@ -34,6 +37,7 @@ class QuizStatsOut(BaseModel):
     streak: int
     bestStreak: int
     categories: List[str]
+    perCategory: List[CategoryStatOut] # NEW
 
 
 # ---------- Helper to get or create stats row ----------
@@ -60,6 +64,24 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
         accuracy = 0.0
         avg_time = None
 
+     # Build per-category stats list
+    per_category: List[CategoryStatOut] = []
+    for cat, cstats in (stats.category_stats or {}).items():
+        total = cstats.get("total", 0)
+        correct = cstats.get("correct", 0)
+        if total:
+            cat_accuracy = (correct / total) * 100
+        else:
+            cat_accuracy = 0.0
+
+        per_category.append(
+            CategoryStatOut(
+                name=cat,
+                questionsAnswered=total,
+                correctAnswers=correct,
+                accuracy=round(cat_accuracy),
+            )
+        )
     return QuizStatsOut(
         questionsAnswered=stats.questions_answered,
         correctAnswers=stats.correct_answers,
@@ -68,6 +90,8 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
         streak=stats.current_streak,
         bestStreak=stats.best_streak,
         categories=stats.categories or [],
+        perCategory=per_category,
+        
     )
 
 
@@ -79,6 +103,7 @@ def get_my_stats(
     session: Session = Depends(get_session),
 ):
     stats = _get_or_create_stats(session, current_user.id)
+    
     return _build_stats_out(stats)
 
 
@@ -91,10 +116,12 @@ def register_quiz_event(
     session: Session = Depends(get_session),
 ):
     stats = _get_or_create_stats(session, current_user.id)
-    print("stats: ",stats)
+    
+    
     # increment question count
     stats.questions_answered += 1
-
+    print("== NEW EVENT ==")
+    print(stats.questions_answered)
     # correct / streak logic
     if payload.correct:
         stats.correct_answers += 1
@@ -108,13 +135,28 @@ def register_quiz_event(
 
     # categories: keep unique
     cat = payload.category.strip()
-    if cat and cat not in (stats.categories or []):
-        stats.categories.append(cat)
+
+# 1) keep simple list of category names (for your existing UI)
+    current_cats = stats.categories or []
+    if cat and cat not in current_cats:
+        # assign NEW list so ORM sees the change
+        stats.categories = current_cats + [cat]
+
+    # 2) maintain aggregated per-category stats
+    category_stats = stats.category_stats or {}
+    if cat:
+        current = category_stats.get(cat, {"total": 0, "correct": 0})
+        current["total"] += 1
+        if payload.correct:
+            current["correct"] += 1
+
+        # assign NEW dict so ORM sees the change
+        category_stats = {**category_stats, cat: current}
+        stats.category_stats = category_stats
 
     stats.updated_at = datetime.utcnow()
 
     session.add(stats)
     session.commit()
     session.refresh(stats)
-
     return _build_stats_out(stats)
