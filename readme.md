@@ -1,4 +1,4 @@
-# QuizProAI Portfolio
+# Portfolio
 
 FastAPI backend + Vite React frontend.
 
