@@ -1,339 +1,479 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { Button, Input } from "@material-tailwind/react";
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@material-tailwind/react";
+import { motion } from "framer-motion";
+import api from "../../api/client";
+import UserStatsBar from "../../components/UserStatsBar";
 
 const categories = ["Geography", "Science", "History", "Technology", "Literature"];
 const letters = ["A", "B", "C", "D"];
 
-const QuizProAI = () => {
+const LANGUAGES = [
+  { name: "English", flag: "🇬🇧" },
+  { name: "Russian", flag: "🇷🇺" },
+  { name: "Georgian", flag: "🇬🇪" },
+];
+
+export default function QuizProAI() {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [fadeOutOthers, setFadeOutOthers] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showHow, setShowHow] = useState(false);
-
-  // NEW: custom category
+  const [language, setLanguage] = useState("English");
   const [customCategory, setCustomCategory] = useState("");
   const [catError, setCatError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const lastEventTimeRef = useRef(null);
+  const progressIntervalRef = useRef(null);
+  // const [perCategory,setPerCategory]=useState([])
 
-  const catBtnBase =
-    "text-indigo-800 text-xl font-semibold capitalize rounded-full px-6 py-3 " +
-    "transition duration-200 transform " +
-    "shadow-lg hover:shadow-2xl hover:shadow-indigo-500/40 hover:-translate-y-0.5 hover:brightness-110 " +
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300";
+  // 🔢 STATS FOR USER
+  const [stats, setStats] = useState({
+    questionsAnswered: 0,
+    correctAnswers: 0,
+    totalTimeSeconds: 0, // placeholder for future timing logic
+    streak: 0,
+    bestStreak: 0,
+    categories: [], // array of strings
+    avgTimePerQuestion: 0,
+    perCategory: [],
+  });
 
-  useEffect(() => {
-    if (loading) {
-      let percent = 0;
-      const interval = setInterval(() => {
-        if (percent < 100) {
-          percent += 1;
-          const el = document.getElementById("loading-percentage");
-          if (el) el.innerText = percent + "%";
-        } else {
-          clearInterval(interval);
-        }
-      }, 30);
-      return () => clearInterval(interval);
-    }
-  }, [loading]);
-
+  // ======== Reset quiz when finished ========
   useEffect(() => {
     if (questions.length > 0 && Object.keys(selectedOptions).length === questions.length) {
-      setTimeout(() => {
-        setQuestions([]);
-        setSelectedOptions({});
-        setSelectedCategory(null);
-        setFadeOutOthers(false);
-      }, 2000);
+      setTimeout(() => resetQuiz(), 2500);
     }
   }, [selectedOptions, questions]);
-
-  const handleCategoryClick = (category) => {
-    if (!selectedCategory) {
-      setSelectedCategory(category);
-      setCatError("");
-
-      setTimeout(() => setFadeOutOthers(true), 2000);
-      setTimeout(() => fetchQuestions(category), 3000);
-    }
+  useEffect(() => {
+    getStatsFromBackend();
+  }, []);
+  const resetQuiz = () => {
+    setQuestions([]);
+    setSelectedOptions({});
+    setSelectedCategory(null);
+    setFadeOutOthers(false);
+    setCustomCategory("");
+    setCatError("");
+    setProgress(0);
+    setLoading(false);
   };
 
-  const fetchQuestions = async (category) => {
-    setLoading(true);
+  // ======== Animate progress bar ========
+  useEffect(() => {
+    if (loading) {
+      setProgress(0);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = setInterval(() => {
+        setProgress((prev) => (prev < 95 ? prev + 1 : prev)); // cap at 95 while waiting
+      }, 40);
+    } else {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      setProgress(100);
+    }
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [loading]);
+
+  // ======== Backend sync helper for stats ========
+  // send ONE event (one answered question)
+  async function syncStatsWithBackend({ correct, timeSpent, category }) {
     try {
-      const res = await axios.post(
-        "http://127.0.0.1:8000/quizproai/generate-questions/",
-        { category },
+      await api.post("/quiz/stats/event", {
+        correct,
+        time_spent: timeSpent,
+        category,
+      });
+      console.log(category)
+    } catch (err) {
+      console.error("Failed to sync stats:", err);
+    }
+  }
+  async function getStatsFromBackend() {
+    try {
+      const res = await api.get("/quiz/stats/me");
+      // Backend returns QuizStatsOut that matches your state keys
+      setStats((prev) => ({
+        ...prev,
+        ...res.data,
+        // keep totalTimeSeconds as local-only if backend doesn’t send it
+        totalTimeSeconds: prev.totalTimeSeconds,
+      }));
+    } catch (err) {
+      console.error("Failed to get stats from backend:", err);
+    }
+  }
+
+  // ======== Questions fetch ========
+  const fetchQuestions = async (category, lang) => {
+    setLoading(true);
+    setProgress(0);
+    try {
+      const res = await api.post(
+        "/quizproai/generate-questions/",
+        { category, language: lang },
         { headers: { "Content-Type": "application/json" } }
       );
-      const data = JSON.parse(res.data);
-      setQuestions(data);
+
+      // Force the bar to 100% just before we reveal questions
+      setProgress(100);
+
+      // tiny delay so users actually see 100%
+      setTimeout(() => {
+        const data = JSON.parse(res.data);
+        setQuestions(data);
+        lastEventTimeRef.current = Date.now();
+        setLoading(false);
+      }, 150);
     } catch (err) {
-      console.error(err);
-      // show backend validation message if any
-      const msg = err?.response?.data?.detail || "Failed to load questions.";
+      const msg = err?.response?.data?.detail || "Could not prepare questions. Try again later.";
       alert(msg);
-      // reset state if backend rejected the category
-      setSelectedCategory(null);
-      setFadeOutOthers(false);
-    } finally {
-      setLoading(false);
+      resetQuiz();
     }
   };
 
-  // small info card wrapper
+  const handleCategoryClick = (category) => {
+    if (loading) return;
+    const langAtClick = language; // lock language for this request
+    setSelectedCategory(category);
+    setCatError("");
+    setFadeOutOthers(true);
+    setTimeout(() => fetchQuestions(category, langAtClick), 600);
+  };
+
+  const startCustom = () => {
+    const cat = customCategory.trim();
+    if (!cat) return setCatError("Please enter a category.");
+    if (cat.length < 3 || cat.length > 40)
+      return setCatError("Category should be 3–40 characters.");
+    handleCategoryClick(cat);
+  };
+
+  const cancelQuiz = () => resetQuiz();
+
   const InfoCard = ({ children }) => (
-    <div className="mx-auto max-w-3xl mt-6 text-left bg-white/10 backdrop-blur rounded-xl p-4 shadow-lg">
+    <div className="mx-auto max-w-3xl mt-6 text-left bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-[0_0_25px_rgba(0,255,255,0.15)] border border-white/20 z-20">
       {children}
     </div>
   );
 
-  const startCustom = () => {
-    const cat = customCategory.trim();
-    if (!cat) {
-      setCatError("Please enter a category.");
-      return;
-    }
-    // simple client-side guard; server does the real validation
-    if (cat.length < 3 || cat.length > 40) {
-      setCatError("Category should be 3–40 characters.");
-      return;
-    }
-    handleCategoryClick(cat);
+  // ======== Handle answer click (stats + selectedOptions) ========
+  const handleOptionClick = (qIndex, option, question) => {
+    const alreadySelected = selectedOptions[qIndex];
+    if (alreadySelected) return;
+
+    const now = Date.now();
+    const timeSpentSeconds = lastEventTimeRef.current
+      ? (now - lastEventTimeRef.current) / 1000
+      : 0;
+    lastEventTimeRef.current = now;
+
+    const isCorrect = option === question.answer;
+    const categoryName = selectedCategory || customCategory || "Unknown";
+
+    // mark answer locally
+    setSelectedOptions((prev) => ({ ...prev, [qIndex]: option }));
+
+    // update local stats immediately (for UI)
+    setStats((prev) => {
+      const questionsAnswered = prev.questionsAnswered + 1;
+      const correctAnswers = prev.correctAnswers + (isCorrect ? 1 : 0);
+      const streak = isCorrect ? prev.streak + 1 : 0;
+      const bestStreak = Math.max(prev.bestStreak, streak);
+      const totalTimeSeconds = prev.totalTimeSeconds + timeSpentSeconds;
+      const avgTimePerQuestion =
+        questionsAnswered > 0 ? totalTimeSeconds / questionsAnswered : 0;
+
+      // --- update perCategory ---
+      const existingIndex = prev.perCategory.findIndex(
+        (c) => c.name === categoryName
+      );
+
+      let newPerCategory;
+      if (existingIndex === -1) {
+        // first time this category appears
+        newPerCategory = [
+          ...prev.perCategory,
+          {
+            name: categoryName,
+            questionsAnswered: questionsAnswered,
+            correctAnswers: correctAnswers,
+            accuracy: (correctAnswers/questionsAnswered)*100,
+          },
+        ];
+        console.log(newPerCategory)
+      } else {
+        // update existing category stats
+        newPerCategory = prev.perCategory.map((c, i) => {
+          if (i !== existingIndex) return c;
+
+          const catQuestions = c.questionsAnswered + 1;
+          const catCorrect = c.correctAnswers + (isCorrect ? 1 : 0);
+          return {
+            ...c,
+            questionsAnswered: catQuestions,
+            correctAnswers: catCorrect,
+            accuracy: (catCorrect / catQuestions) * 100,
+          };
+        });
+      }
+
+      const categories = prev.categories.includes(categoryName)
+        ? prev.categories
+        : [...prev.categories, categoryName];
+
+      return {
+        ...prev,
+        questionsAnswered,
+        correctAnswers,
+        streak,
+        bestStreak,
+        totalTimeSeconds,
+        avgTimePerQuestion,
+        categories,
+        perCategory: newPerCategory,
+        
+      };
+    });
+
+    // send single event to backend
+    syncStatsWithBackend({
+      correct: isCorrect,
+      timeSpent: timeSpentSeconds,
+      category: categoryName,
+    })
+      .then(() => getStatsFromBackend())
+      .catch((err) => console.error("sync or refresh failed:", err));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-800 to-purple-800 text-white p-6">
-      <div className="max-w-3xl mx-auto text-center mt-12">
-        <h1 className="text-4xl font-bold mb-3">QuizProAI</h1>
+    <div className="relative min-h-screen overflow-hidden text-white flex flex-col items-center justify-start px-6 pb-32 pt-24">
+      {/* ✨ Background */}
+      <div
+        className="absolute inset-0 -z-10 bg-gradient-to-br from-[#010516] via-[#13002b] to-[#000814]"
+        style={{ pointerEvents: "none" }}
+      />
 
-        <p className="mb-4 text-lg">
-          {selectedCategory ? `Category: ${selectedCategory}` : "Choose a category to begin your challenge:"}
-        </p>
+      {/* 👤 User + stats bar */}
+      <UserStatsBar stats={stats} />
 
-        {/* How it works */}
-        {!selectedCategory && !questions.length && (
-          <InfoCard>
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 rounded-full bg-indigo-500/20 px-3 py-1.5">
-                <span className="text-indigo-200 font-bold">i</span>
-              </div>
-              <div className="text-indigo-50/90">
-                <p className="font-semibold">How it works</p>
-                <ul className="list-disc ml-5 mt-2 space-y-1 text-sm">
-                  <li>Pick a category (or add your own) to start.</li>
-                  <li>The server returns <strong>5 unused</strong> questions from a database.</li>
-                  <li>If the pool is empty, the server generates <strong>10 new</strong> with OpenAI, stores them, and serves 5.</li>
-                  <li>Questions are cleaned & deduped; the correct answer is the <em>actual option text</em> (not just A/B/C/D).</li>
-                </ul>
+      <motion.div
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(0,255,255,0.08),transparent_70%)]"
+        style={{ pointerEvents: "none" }}
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 200, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_80%_80%,rgba(255,200,0,0.08),transparent_70%)]"
+        style={{ pointerEvents: "none" }}
+        animate={{ rotate: [360, 0] }}
+        transition={{ duration: 220, repeat: Infinity, ease: "linear" }}
+      />
 
-                <button
-                  onClick={() => setShowHow((v) => !v)}
-                  className="mt-3 text-xs underline underline-offset-2 text-indigo-200 hover:text-white"
-                >
-                  {showHow ? "Hide prompt example" : "Show prompt example"}
-                </button>
+      {/* 🧠 Title */}
+      <motion.h1
+        className="z-20 text-5xl md:text-6xl font-extrabold text-center mb-10 tracking-wide drop-shadow-[0_0_25px_rgba(255,255,255,0.3)]"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1 }}
+      >
+        ⚡ QuizProAI
+      </motion.h1>
 
-                {showHow && (
-                  <pre className="mt-3 text-xs bg-black/30 p-3 rounded-lg overflow-x-auto text-indigo-100">
-{`Return ONLY a JSON array of 10 items (no commentary).
-Category: "<chosen category>"
+      {/* 🌍 Language Selector */}
+      {!fadeOutOthers && !questions.length && (
+        <motion.div
+          className="z-20 flex justify-center items-center gap-4 mb-10 backdrop-blur-md bg-white/10 px-6 py-3 rounded-full border border-cyan-400/30 shadow-[0_0_20px_rgba(0,255,255,0.15)]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+        >
+          {LANGUAGES.map((lang) => (
+            <motion.button
+              key={lang.name}
+              onClick={() => setLanguage(lang.name)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${language === lang.name
+                ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
+                : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
+                }`}
+            >
+              <span className="text-2xl">{lang.flag}</span> {lang.name}
+            </motion.button>
+          ))}
+        </motion.div>
+      )}
 
+      {/* 💬 Info Section */}
+      {!selectedCategory && !questions.length && (
+        <InfoCard>
+          <p className="font-semibold text-lg mb-3">How it works</p>
+          <ul className="list-disc ml-5 mt-2 space-y-1 text-sm">
+            <li>Pick a category (or enter your own).</li>
+            <li>Server returns 5 unused questions from the DB.</li>
+            <li>If empty, it generates 10 new ones using OpenAI and stores them.</li>
+            <li>Answers are the actual text options, not letters.</li>
+          </ul>
+          <button
+            onClick={() => setShowHow((v) => !v)}
+            className="mt-3 text-xs underline underline-offset-2 text-cyan-200 hover:text-white"
+          >
+            {showHow ? "Hide prompt example" : "Show prompt example"}
+          </button>
+          {showHow && (
+            <pre className="mt-3 text-xs bg-black/30 p-3 rounded-lg overflow-x-auto text-indigo-100">
+              {`Return ONLY JSON array of 10 items.
 Each item:
 {
   "level": 1,
-  "question": "under 220 chars",
-  "options": ["option text 1", "option text 2", "option text 3", "option text 4"],
-  "answer": "option text 1"
-}
+  "question": "short and clear",
+  "options": ["1", "2", "3", "4"],
+  "answer": "1"
+}`}
+            </pre>
+          )}
+        </InfoCard>
+      )}
 
-Rules:
-- Options are unlabeled (no A./B./C./D.).
-- "answer" must be EXACTLY one of the strings in "options".
-- Make all 10 questions mutually different.`}
-                  </pre>
-                )}
-              </div>
-            </div>
-          </InfoCard>
-        )}
+      {/* 🎯 Preset Categories */}
+      {!fadeOutOthers && !questions.length && (
+        <div className="z-20 flex flex-wrap justify-center gap-4 mt-10">
+          {categories.map((category) => (
+            <Button
+              key={category}
+              onClick={() => handleCategoryClick(category)}
+              disabled={loading}
+              className="text-lg rounded-full px-6 py-3 bg-cyan-700/20 border border-cyan-400/40 text-white hover:bg-cyan-500/40 transition disabled:opacity-50"
+            >
+              {category}
+            </Button>
+          ))}
+        </div>
+      )}
 
-        {/* Preset categories */}
-        {!fadeOutOthers && !questions.length && (
-          <div className="flex flex-wrap justify-center gap-4 mt-6">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                onClick={() => handleCategoryClick(category)}
-                color="white"
-                size="lg"
-                disabled={!!selectedCategory && selectedCategory !== category}
-                className={`
-                  ${catBtnBase}
-                  ${selectedCategory === category ? "animate-blink-fast" : ""}
-                  ${selectedCategory && selectedCategory !== category ? "opacity-0 scale-0" : ""}
-                `}
-              >
-                {category}
-              </Button>
-            ))}
+      {/* 📝 Custom Category Input */}
+      {!fadeOutOthers && !questions.length && (
+        <motion.div
+          className="z-20 max-w-2xl w-full text-center mt-12"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
+        >
+          <p className="text-2xl font-semibold text-white mb-6 drop-shadow-lg">
+            OR <span className="text-yellow-300">enter your own</span> category:
+          </p>
+          <div className="relative group flex justify-center">
+            <input
+              type="text"
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="Type your custom topic..."
+              className="w-full max-w-lg text-2xl text-center font-bold text-indigo-100 placeholder-indigo-300 
+                         bg-white/10 border-2 border-cyan-400/40 rounded-full px-6 py-4 
+                         focus:outline-none focus:ring-4 focus:ring-yellow-300/40 
+                         focus:border-yellow-300 shadow-md transition-all duration-300"
+            />
           </div>
-        )}
+          <Button
+            onClick={startCustom}
+            disabled={loading}
+            className="mt-6 text-indigo-800 text-xl font-semibold rounded-full px-10 py-4 
+                       bg-yellow-300 hover:bg-yellow-400 hover:shadow-[0_0_25px_rgba(255,255,0,0.6)] hover:scale-105 transition-all duration-300 disabled:opacity-60"
+          >
+            Start
+          </Button>
+          {catError && (
+            <p className="text-red-300 text-sm mt-3 font-semibold animate-pulse">
+              {catError}
+            </p>
+          )}
+        </motion.div>
+      )}
 
-        {/* Custom category input */}
-        {/* Custom category input */}
-{!fadeOutOthers && !questions.length && (
-  <div className="mt-10 max-w-2xl mx-auto text-center">
-    <p className="text-2xl font-semibold text-white mb-6 drop-shadow-lg tracking-wide">
-      OR&nbsp;<span className="text-yellow-300"> enter category</span>&nbsp;you want to be tested in:
-    </p>
+      {/* ⏳ Loading Bar */}
+      {loading && (
+        <div className="z-20 mt-12 text-xl text-cyan-200 w-full max-w-lg">
+          <p>Loading questions...</p>
+          <div className="relative bg-gray-700/30 rounded-full h-6 mt-4 overflow-hidden border border-cyan-300/40">
+            <div
+              className="bg-gradient-to-r from-yellow-400 via-cyan-300 to-yellow-400 h-6 rounded-full transition-all duration-200"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm mt-1">{progress}%</p>
+        </div>
+      )}
 
-    <div className="relative group flex justify-center">
-      <input
-        type="text"
-        value={customCategory}
-        onChange={(e) => {
-          setCatError("");
-          setCustomCategory(e.target.value);
-        }}
-        placeholder="Type your custom topic here..."
-        className="w-full max-w-lg text-2xl text-center font-bold text-indigo-100 placeholder-indigo-300 
-                   bg-white/10 border-2 border-indigo-400/30 rounded-full px-6 py-4 
-                   backdrop-blur-sm focus:outline-none focus:ring-4 focus:ring-yellow-300/50 
-                   focus:border-yellow-300 shadow-md transition-all duration-300 
-                   group-hover:shadow-yellow-400/40"
-      />
+      {/* 🧩 Questions Section */}
+      {questions.length > 0 && (
+        <motion.div
+          className="z-20 w-full max-w-3xl mt-10 space-y-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
+          {questions.map((q, idx) => {
+            const selectedOption = selectedOptions[idx];
+            const isCorrect = selectedOption === q.answer;
 
-      {/* optional decorative glow ring */}
-      <div className="absolute inset-0 rounded-full blur-xl opacity-30 group-hover:opacity-60 transition-all duration-300 bg-gradient-to-r from-indigo-400 to-yellow-400 pointer-events-none"></div>
-    </div>
+            return (
+              <div
+                key={idx}
+                className="text-left bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl shadow-[0_0_25px_rgba(255,255,255,0.1)]"
+              >
+                <p className="text-lg font-bold mb-2 text-yellow-200">
+                  Level {q.level}: <span className="text-white">{q.question}</span>
+                </p>
+                {selectedOption && (
+                  <p
+                    className={`mb-2 font-semibold ${isCorrect ? "text-green-400" : "text-red-400"
+                      }`}
+                  >
+                    {isCorrect ? "✅ Correct!" : "❌ Wrong answer"}
+                  </p>
+                )}
+                <ul className="space-y-2">
+                  {q.options.map((option, i) => (
+                    <li
+                      key={i}
+                      onClick={() => handleOptionClick(idx, option, q)}
+                      className={`rounded px-3 py-2 cursor-pointer transition text-lg ${selectedOption
+                        ? option === q.answer
+                          ? "bg-green-600/60 border border-green-300/40"
+                          : option === selectedOption
+                            ? "bg-red-600/60 border border-red-300/40"
+                            : "bg-cyan-800/40"
+                        : "bg-cyan-900/40 hover:bg-cyan-700/60 border border-cyan-400/30"
+                        }`}
+                    >
+                      <strong className="mr-2 text-cyan-300">{letters[i]}.</strong> {option}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
 
-    <Button
-      color="white"
-      size="lg"
-      onClick={startCustom}
-      className="mt-6 text-indigo-800 text-xl font-semibold rounded-full px-8 py-3 
-                 bg-yellow-300 hover:bg-yellow-400 hover:shadow-xl hover:scale-105 
-                 transition-all duration-300"
-      disabled={!!selectedCategory}
-    >
-      Start
-    </Button>
-
-    {catError && (
-      <p className="text-red-300 text-sm mt-3 font-semibold animate-pulse">
-        {catError}
-      </p>
-    )}
-
-    {/* Live preview of user input */}
-    {customCategory && (
-      <p className="mt-8 text-3xl font-bold text-white drop-shadow-md tracking-wide animate-fade-in">
-        “{customCategory}”
-      </p>
-    )}
-  </div>
-)}
-
-
-        {/* Selected category badge */}
-        {fadeOutOthers && selectedCategory && !questions.length && (
-          <div className="mt-6 flex justify-center">
-            <Button color="white" size="lg" className={`${catBtnBase}`}>
-              {selectedCategory}
+          {/* ❌ Cancel Quiz Button */}
+          <div className="flex justify-center mt-10">
+            <Button
+              onClick={cancelQuiz}
+              className="text-white font-semibold text-lg rounded-full px-8 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-[0_0_20px_rgba(255,0,0,0.4)] transition-all duration-300"
+            >
+              ✖ Cancel Quiz
             </Button>
           </div>
-        )}
-
-        {/* Preparing note */}
-        {fadeOutOthers && selectedCategory && !questions.length && !loading && (
-          <InfoCard>
-            <p className="text-indigo-50/90 text-sm">
-              Preparing your quiz… If there aren’t enough unused questions saved in the database,
-              the server will generate 10 fresh ones with OpenAI, store them, and send you 5 now.
-            </p>
-          </InfoCard>
-        )}
-
-        {/* Loading bar */}
-        {loading && (
-          <div className="mt-6 text-lg">
-            <p>Loading questions...</p>
-            <div className="relative w-full bg-gray-200 rounded-full h-6 mt-4 overflow-hidden">
-              <div className="bg-yellow-400 h-6 rounded-full text-center text-black font-bold text-sm flex items-center justify-center loading-bar">
-                <span id="loading-percentage">0%</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Explainer */}
-        {questions.length > 0 && (
-          <InfoCard>
-            <p className="text-indigo-50/90 text-sm">
-              You’re seeing 5 questions from the “{selectedCategory}” pool. The letters A/B/C/D are added here for display,
-              but correctness is checked against the exact answer string saved on the server.
-            </p>
-          </InfoCard>
-        )}
-
-        {/* Questions */}
-        {questions.length > 0 && (
-          <div className="mt-6 space-y-8">
-            {questions.map((q, idx) => {
-              const selectedOption = selectedOptions[idx];
-              const isCorrect = selectedOption === q.answer;
-
-              return (
-                <div key={idx} className="text-left bg-white bg-opacity-10 p-4 rounded-lg shadow-md">
-                  <p className="text-lg font-bold mb-2">Level {q.level}: {q.question}</p>
-
-                  {selectedOption && (
-                    <p className={`mb-2 font-semibold ${isCorrect ? "text-green-400" : "text-red-400"}`}>
-                      {isCorrect ? "Correct!" : "Wrong answer"}
-                    </p>
-                  )}
-
-                  <ul className="space-y-2">
-                    {q.options.map((option, i) => (
-                      <li
-                        key={i}
-                        onClick={() => {
-                          if (!selectedOption) {
-                            setSelectedOptions({ ...selectedOptions, [idx]: option });
-                          }
-                        }}
-                        className={`
-                          rounded px-3 py-2 cursor-pointer transition
-                          ${selectedOption
-                            ? option === q.answer
-                              ? "bg-green-600"
-                              : option === selectedOption
-                                ? "bg-red-600"
-                                : "bg-indigo-700"
-                            : "bg-indigo-700 hover:bg-indigo-600"}
-                        `}
-                      >
-                        <strong className="mr-2">{letters[i]}.</strong> {option}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {questions.length > 0 && Object.keys(selectedOptions).length === questions.length && (
-          <p className="text-center text-xl font-bold mt-4">
-            You completed the quiz! Returning to category selection...
-          </p>
-        )}
-      </div>
+        </motion.div>
+      )}
     </div>
   );
-};
-
-export default QuizProAI;
+}
