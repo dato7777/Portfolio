@@ -1,6 +1,6 @@
 # backend_portfolio/routers/auth.py
 from datetime import timedelta
-
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
@@ -67,15 +67,15 @@ def signup(data: SignupRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest):
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Verify credentials and return JWT.
     """
     with Session(engine) as session:
-        stmt = select(User).where(User.username == data.username)
+        stmt = select(User).where(User.username == form_data.username)
         user = session.exec(stmt).first()
 
-        if not user or not verify_password(data.password, user.password_hash):
+        if not user or not verify_password(form_data.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password.",

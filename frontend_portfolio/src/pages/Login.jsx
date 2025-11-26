@@ -16,7 +16,9 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
+  const params = new URLSearchParams();
+  params.append("username", username);
+  params.append("password", password);
   // where to go after login
   const from = location.state?.from?.pathname || "/projects/quizProAi";
 
@@ -32,11 +34,17 @@ export default function Login() {
     try {
       let res;
       if (mode === "login") {
-        res = await api.post("/auth/login", { username, password });
+        res = await api.post("/auth/login", params,
+          {
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+          }
+        );
       } else {
         res = await api.post("/auth/signup", { username, email, password });
       }
-
+      // const { access_token, token_type } = res.data;
       const token = res.data.access_token;
       login({ token, username });
       navigate(from, { replace: true });
@@ -166,8 +174,8 @@ export default function Login() {
                 ? "Logging in..."
                 : "Creating account..."
               : mode === "login"
-              ? "Log in"
-              : "Sign up"}
+                ? "Log in"
+                : "Sign up"}
           </motion.button>
         </form>
 

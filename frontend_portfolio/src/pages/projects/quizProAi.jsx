@@ -26,6 +26,7 @@ export default function QuizProAI() {
   const [progress, setProgress] = useState(0);
   const lastEventTimeRef = useRef(null);
   const progressIntervalRef = useRef(null);
+  // const [perCategory,setPerCategory]=useState([])
 
   // 🔢 STATS FOR USER
   const [stats, setStats] = useState({
@@ -36,7 +37,7 @@ export default function QuizProAI() {
     bestStreak: 0,
     categories: [], // array of strings
     avgTimePerQuestion: 0,
-    perCategory: [], 
+    perCategory: [],
   });
 
   // ======== Reset quiz when finished ========
@@ -178,15 +179,52 @@ export default function QuizProAI() {
     const isCorrect = option === question.answer;
     const categoryName = selectedCategory || customCategory || "Unknown";
 
+    // mark answer locally
     setSelectedOptions((prev) => ({ ...prev, [qIndex]: option }));
 
-    // update UI immediately
+    // update local stats immediately (for UI)
     setStats((prev) => {
       const questionsAnswered = prev.questionsAnswered + 1;
       const correctAnswers = prev.correctAnswers + (isCorrect ? 1 : 0);
       const streak = isCorrect ? prev.streak + 1 : 0;
       const bestStreak = Math.max(prev.bestStreak, streak);
       const totalTimeSeconds = prev.totalTimeSeconds + timeSpentSeconds;
+      const avgTimePerQuestion =
+        questionsAnswered > 0 ? totalTimeSeconds / questionsAnswered : 0;
+
+      // --- update perCategory ---
+      const existingIndex = prev.perCategory.findIndex(
+        (c) => c.name === categoryName
+      );
+
+      let newPerCategory;
+      if (existingIndex === -1) {
+        // first time this category appears
+        newPerCategory = [
+          ...prev.perCategory,
+          {
+            name: categoryName,
+            questionsAnswered: questionsAnswered,
+            correctAnswers: correctAnswers,
+            accuracy: (correctAnswers/questionsAnswered)*100,
+          },
+        ];
+        console.log(newPerCategory)
+      } else {
+        // update existing category stats
+        newPerCategory = prev.perCategory.map((c, i) => {
+          if (i !== existingIndex) return c;
+
+          const catQuestions = c.questionsAnswered + 1;
+          const catCorrect = c.correctAnswers + (isCorrect ? 1 : 0);
+          return {
+            ...c,
+            questionsAnswered: catQuestions,
+            correctAnswers: catCorrect,
+            accuracy: (catCorrect / catQuestions) * 100,
+          };
+        });
+      }
 
       const categories = prev.categories.includes(categoryName)
         ? prev.categories
@@ -199,11 +237,14 @@ export default function QuizProAI() {
         streak,
         bestStreak,
         totalTimeSeconds,
+        avgTimePerQuestion,
         categories,
+        perCategory: newPerCategory,
+        
       };
     });
 
-    // sync with backend and then refresh from backend
+    // send single event to backend
     syncStatsWithBackend({
       correct: isCorrect,
       timeSpent: timeSpentSeconds,
