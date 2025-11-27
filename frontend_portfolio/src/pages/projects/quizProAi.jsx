@@ -24,18 +24,18 @@ export default function QuizProAI() {
   const [customCategory, setCustomCategory] = useState("");
   const [catError, setCatError] = useState("");
   const [progress, setProgress] = useState(0);
+
   const lastEventTimeRef = useRef(null);
   const progressIntervalRef = useRef(null);
-  // const [perCategory,setPerCategory]=useState([])
 
-  // 🔢 STATS FOR USER
+  // 🔢 STATS FOR USER – backend is the source of truth, we just mirror it
   const [stats, setStats] = useState({
     questionsAnswered: 0,
     correctAnswers: 0,
-    totalTimeSeconds: 0, // placeholder for future timing logic
+    totalTimeSeconds: 0,
     streak: 0,
     bestStreak: 0,
-    categories: [], // array of strings
+    categories: [],
     avgTimePerQuestion: 0,
     perCategory: [],
   });
@@ -46,9 +46,12 @@ export default function QuizProAI() {
       setTimeout(() => resetQuiz(), 2500);
     }
   }, [selectedOptions, questions]);
+
+  // Load stats when component mounts
   useEffect(() => {
     getStatsFromBackend();
   }, []);
+
   const resetQuiz = () => {
     setQuestions([]);
     setSelectedOptions({});
@@ -83,8 +86,7 @@ export default function QuizProAI() {
     };
   }, [loading]);
 
-  // ======== Backend sync helper for stats ========
-  // send ONE event (one answered question)
+  // ======== Backend sync helper: send ONE event (one answered question) ========
   async function syncStatsWithBackend({ correct, timeSpent, category }) {
     try {
       await api.post("/quiz/stats/event", {
@@ -92,19 +94,20 @@ export default function QuizProAI() {
         time_spent: timeSpent,
         category,
       });
-      console.log(category)
+      // console.log("Sent event for category:", category);
     } catch (err) {
       console.error("Failed to sync stats:", err);
     }
   }
+
   async function getStatsFromBackend() {
     try {
       const res = await api.get("/quiz/stats/me");
-      // Backend returns QuizStatsOut that matches your state keys
+      // Backend returns QuizStatsOut: we spread it into our local state
       setStats((prev) => ({
         ...prev,
         ...res.data,
-        // keep totalTimeSeconds as local-only if backend doesn’t send it
+        // totalTimeSeconds is not part of QuizStatsOut, keep local value if you want
         totalTimeSeconds: prev.totalTimeSeconds,
       }));
     } catch (err) {
@@ -123,10 +126,8 @@ export default function QuizProAI() {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      // Force the bar to 100% just before we reveal questions
       setProgress(100);
 
-      // tiny delay so users actually see 100%
       setTimeout(() => {
         const data = JSON.parse(res.data);
         setQuestions(data);
@@ -142,7 +143,7 @@ export default function QuizProAI() {
 
   const handleCategoryClick = (category) => {
     if (loading) return;
-    const langAtClick = language; // lock language for this request
+    const langAtClick = language;
     setSelectedCategory(category);
     setCatError("");
     setFadeOutOthers(true);
@@ -165,7 +166,7 @@ export default function QuizProAI() {
     </div>
   );
 
-  // ======== Handle answer click (stats + selectedOptions) ========
+  // ======== Handle answer click (update stats + send event) ========
   const handleOptionClick = (qIndex, option, question) => {
     const alreadySelected = selectedOptions[qIndex];
     if (alreadySelected) return;
@@ -182,7 +183,7 @@ export default function QuizProAI() {
     // mark answer locally
     setSelectedOptions((prev) => ({ ...prev, [qIndex]: option }));
 
-    // update local stats immediately (for UI)
+    // Optimistic global stats (per-category comes from backend)
     setStats((prev) => {
       const questionsAnswered = prev.questionsAnswered + 1;
       const correctAnswers = prev.correctAnswers + (isCorrect ? 1 : 0);
@@ -192,43 +193,10 @@ export default function QuizProAI() {
       const avgTimePerQuestion =
         questionsAnswered > 0 ? totalTimeSeconds / questionsAnswered : 0;
 
-      // --- update perCategory ---
-      const existingIndex = prev.perCategory.findIndex(
-        (c) => c.name === categoryName
-      );
-
-      let newPerCategory;
-      if (existingIndex === -1) {
-        // first time this category appears
-        newPerCategory = [
-          ...prev.perCategory,
-          {
-            name: categoryName,
-            questionsAnswered: questionsAnswered,
-            correctAnswers: correctAnswers,
-            accuracy: (correctAnswers/questionsAnswered)*100,
-          },
-        ];
-        console.log(newPerCategory)
-      } else {
-        // update existing category stats
-        newPerCategory = prev.perCategory.map((c, i) => {
-          if (i !== existingIndex) return c;
-
-          const catQuestions = c.questionsAnswered + 1;
-          const catCorrect = c.correctAnswers + (isCorrect ? 1 : 0);
-          return {
-            ...c,
-            questionsAnswered: catQuestions,
-            correctAnswers: catCorrect,
-            accuracy: (catCorrect / catQuestions) * 100,
-          };
-        });
-      }
-
-      const categories = prev.categories.includes(categoryName)
-        ? prev.categories
-        : [...prev.categories, categoryName];
+      const categories =
+        prev.categories.includes(categoryName)
+          ? prev.categories
+          : [...prev.categories, categoryName];
 
       return {
         ...prev,
@@ -239,12 +207,11 @@ export default function QuizProAI() {
         totalTimeSeconds,
         avgTimePerQuestion,
         categories,
-        perCategory: newPerCategory,
-        
+        // perCategory is updated from backend only
       };
     });
 
-    // send single event to backend
+    // send single event to backend, then refresh stats from DB
     syncStatsWithBackend({
       correct: isCorrect,
       timeSpent: timeSpentSeconds,
@@ -302,10 +269,11 @@ export default function QuizProAI() {
               onClick={() => setLanguage(lang.name)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${language === lang.name
-                ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
-                : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
-                }`}
+              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${
+                language === lang.name
+                  ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
+                  : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
+              }`}
             >
               <span className="text-2xl">{lang.flag}</span> {lang.name}
             </motion.button>
@@ -331,7 +299,7 @@ export default function QuizProAI() {
           </button>
           {showHow && (
             <pre className="mt-3 text-xs bg-black/30 p-3 rounded-lg overflow-x-auto text-indigo-100">
-              {`Return ONLY JSON array of 10 items.
+{`Return ONLY JSON array of 10 items.
 Each item:
 {
   "level": 1,
@@ -435,8 +403,9 @@ Each item:
                 </p>
                 {selectedOption && (
                   <p
-                    className={`mb-2 font-semibold ${isCorrect ? "text-green-400" : "text-red-400"
-                      }`}
+                    className={`mb-2 font-semibold ${
+                      isCorrect ? "text-green-400" : "text-red-400"
+                    }`}
                   >
                     {isCorrect ? "✅ Correct!" : "❌ Wrong answer"}
                   </p>
@@ -446,14 +415,15 @@ Each item:
                     <li
                       key={i}
                       onClick={() => handleOptionClick(idx, option, q)}
-                      className={`rounded px-3 py-2 cursor-pointer transition text-lg ${selectedOption
-                        ? option === q.answer
-                          ? "bg-green-600/60 border border-green-300/40"
-                          : option === selectedOption
+                      className={`rounded px-3 py-2 cursor-pointer transition text-lg ${
+                        selectedOption
+                          ? option === q.answer
+                            ? "bg-green-600/60 border border-green-300/40"
+                            : option === selectedOption
                             ? "bg-red-600/60 border border-red-300/40"
                             : "bg-cyan-800/40"
-                        : "bg-cyan-900/40 hover:bg-cyan-700/60 border border-cyan-400/30"
-                        }`}
+                          : "bg-cyan-900/40 hover:bg-cyan-700/60 border border-cyan-400/30"
+                      }`}
                     >
                       <strong className="mr-2 text-cyan-300">{letters[i]}.</strong> {option}
                     </li>

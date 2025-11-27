@@ -52,7 +52,7 @@ def _get_or_create_stats(session: Session, user_id: int) -> QuizStats:
         session.add(stats)
         session.commit()
         session.refresh(stats)
-
+    # print("LOOK HERE: STATS: ",[stat for stat in stats])
     return stats
 
 
@@ -82,6 +82,7 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
                 accuracy=round(cat_accuracy),
             )
         )
+        # print("*****-LOOK HERE-PERCATEGORY IS:  ***",per_category)
     return QuizStatsOut(
         questionsAnswered=stats.questions_answered,
         correctAnswers=stats.correct_answers,
@@ -120,8 +121,6 @@ def register_quiz_event(
     
     # increment question count
     stats.questions_answered += 1
-    print("== NEW EVENT ==")
-    print(stats.questions_answered)
     # correct / streak logic
     if payload.correct:
         stats.correct_answers += 1
@@ -147,6 +146,7 @@ def register_quiz_event(
     if cat:
         current = category_stats.get(cat, {"total": 0, "correct": 0})
         current["total"] += 1
+        print("THIS IS MY PAYLOAD: ",payload)
         if payload.correct:
             current["correct"] += 1
 
