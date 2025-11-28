@@ -5,11 +5,6 @@ import SkillsColumns from "../components/SkillsColumns";
 import ProjectsColumns from "../components/ProjectsColumns";
 
 export default function HomeInspired() {
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem("prefersDark");
-    return saved ? JSON.parse(saved) : true;
-  });
-
   const [showBSD, setShowBSD] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
@@ -37,12 +32,6 @@ export default function HomeInspired() {
     topOffset: 340,    // height where project tags begin
     bottomOffset: -60, // how far above Einstein quote they stop
   };
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("prefersDark", JSON.stringify(dark));
-  }, [dark]);
-
   const handleProjectsClick = () => {
     setShowProjectsButton(true);
   };
@@ -52,7 +41,13 @@ export default function HomeInspired() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div
+    className="
+      relative min-h-screen overflow-hidden
+      bg-slate-50 text-slate-900
+      dark:bg-slate-950 dark:text-slate-50
+    "
+  >
       {/* glowing backdrop */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <motion.div
@@ -62,16 +57,7 @@ export default function HomeInspired() {
         />
       </div>
 
-      {/* theme toggle */}
-      <button
-        onClick={() => setDark((d) => !d)}
-        className="fixed left-6 bottom-6 rounded-full border border-neutral-300/50 dark:border-neutral-700/60 px-3 py-1.5 text-xs backdrop-blur bg-white/40 dark:bg-black/30 hover:scale-[1.03] transition"
-      >
-        {dark ? "Light mode" : "Dark mode"}
-      </button>
-
       <div id="projectsRail" className="fixed right-0 top-0 h-screen w-[280px] pointer-events-none" />
-
       {/* hero */}
       <main className="mx-auto max-w-7xl px-6 pt-24 md:pt-28">
         {/* “Show Skills” button */}

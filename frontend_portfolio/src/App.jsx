@@ -3,11 +3,13 @@ import About from "./pages/About";
 import Home from "./pages/home";
 import MyNavbar from "./components/Navbar"; // This is your Material Tailwind navbar
 import Projects from "./pages/projects/projects";
-import QuizProAI from "./pages/projects/QuizProAI";
+import QuizProAI from "./pages/projects/quizProAi";
 import Weather from "./pages/projects/weather";
 import ScrollToTop from "./pages/projects/ScrollToTop";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Contact from "./pages/Contact";
+
 function App() {
   return (
     <Router>
@@ -29,6 +31,7 @@ function App() {
           />
           <Route path="/projects/weather" element={< Weather />} />
           <Route path="/login" element={< Login />} />
+          <Route path="/contact" element={< Contact />} />
 
           {/* Add more routes like /projects, /contact later */}
         </Routes>

@@ -10,7 +10,6 @@ from backend_portfolio.routers.Projects import quizproai
 from backend_portfolio.routers.Projects.weather import router as weather_router
 from backend_portfolio.routers.auth import router as auth_router
 from backend_portfolio.routers.Projects.quiz_stats import router as quiz_stats_router
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     SQLModel.metadata.create_all(engine)  # auto-init tables
