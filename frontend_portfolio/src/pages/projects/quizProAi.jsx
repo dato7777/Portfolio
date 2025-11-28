@@ -43,7 +43,13 @@ export default function QuizProAI() {
   // ======== Reset quiz when finished ========
   useEffect(() => {
     if (questions.length > 0 && Object.keys(selectedOptions).length === questions.length) {
-      setTimeout(() => resetQuiz(), 2500);
+      requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    });
+      setTimeout(() => resetQuiz(), 1500);
     }
   }, [selectedOptions, questions]);
 
@@ -159,7 +165,23 @@ export default function QuizProAI() {
   };
 
   const cancelQuiz = () => resetQuiz();
+  const handleCancelClick = () => {
+    cancelQuiz();
 
+    // Wait for the UI to update, then scroll
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    });
+  };
+
+  // ...
+
+  <Button onClick={handleCancelClick}>
+    Cancel
+  </Button>
   const InfoCard = ({ children }) => (
     <div className="mx-auto max-w-3xl mt-6 text-left bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-[0_0_25px_rgba(0,255,255,0.15)] border border-white/20 z-20">
       {children}
@@ -269,11 +291,10 @@ export default function QuizProAI() {
               onClick={() => setLanguage(lang.name)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${
-                language === lang.name
-                  ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
-                  : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
-              }`}
+              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${language === lang.name
+                ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
+                : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
+                }`}
             >
               <span className="text-2xl">{lang.flag}</span> {lang.name}
             </motion.button>
@@ -299,7 +320,7 @@ export default function QuizProAI() {
           </button>
           {showHow && (
             <pre className="mt-3 text-xs bg-black/30 p-3 rounded-lg overflow-x-auto text-indigo-100">
-{`Return ONLY JSON array of 10 items.
+              {`Return ONLY JSON array of 10 items.
 Each item:
 {
   "level": 1,
@@ -403,9 +424,8 @@ Each item:
                 </p>
                 {selectedOption && (
                   <p
-                    className={`mb-2 font-semibold ${
-                      isCorrect ? "text-green-400" : "text-red-400"
-                    }`}
+                    className={`mb-2 font-semibold ${isCorrect ? "text-green-400" : "text-red-400"
+                      }`}
                   >
                     {isCorrect ? "✅ Correct!" : "❌ Wrong answer"}
                   </p>
@@ -415,15 +435,14 @@ Each item:
                     <li
                       key={i}
                       onClick={() => handleOptionClick(idx, option, q)}
-                      className={`rounded px-3 py-2 cursor-pointer transition text-lg ${
-                        selectedOption
-                          ? option === q.answer
-                            ? "bg-green-600/60 border border-green-300/40"
-                            : option === selectedOption
+                      className={`rounded px-3 py-2 cursor-pointer transition text-lg ${selectedOption
+                        ? option === q.answer
+                          ? "bg-green-600/60 border border-green-300/40"
+                          : option === selectedOption
                             ? "bg-red-600/60 border border-red-300/40"
                             : "bg-cyan-800/40"
-                          : "bg-cyan-900/40 hover:bg-cyan-700/60 border border-cyan-400/30"
-                      }`}
+                        : "bg-cyan-900/40 hover:bg-cyan-700/60 border border-cyan-400/30"
+                        }`}
                     >
                       <strong className="mr-2 text-cyan-300">{letters[i]}.</strong> {option}
                     </li>
@@ -436,7 +455,7 @@ Each item:
           {/* ❌ Cancel Quiz Button */}
           <div className="flex justify-center mt-10">
             <Button
-              onClick={cancelQuiz}
+              onClick={handleCancelClick}
               className="text-white font-semibold text-lg rounded-full px-8 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-[0_0_20px_rgba(255,0,0,0.4)] transition-all duration-300"
             >
               ✖ Cancel Quiz

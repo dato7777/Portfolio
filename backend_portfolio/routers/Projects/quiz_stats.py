@@ -52,7 +52,6 @@ def _get_or_create_stats(session: Session, user_id: int) -> QuizStats:
         session.add(stats)
         session.commit()
         session.refresh(stats)
-    # print("LOOK HERE: STATS: ",[stat for stat in stats])
     return stats
 
 
@@ -82,7 +81,6 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
                 accuracy=round(cat_accuracy),
             )
         )
-        # print("*****-LOOK HERE-PERCATEGORY IS:  ***",per_category)
     return QuizStatsOut(
         questionsAnswered=stats.questions_answered,
         correctAnswers=stats.correct_answers,
@@ -117,8 +115,6 @@ def register_quiz_event(
     session: Session = Depends(get_session),
 ):
     stats = _get_or_create_stats(session, current_user.id)
-    
-    
     # increment question count
     stats.questions_answered += 1
     # correct / streak logic
@@ -128,34 +124,28 @@ def register_quiz_event(
         stats.best_streak = max(stats.best_streak, stats.current_streak)
     else:
         stats.current_streak = 0
-
     # time
     stats.total_time_seconds += max(payload.time_spent, 0.0)
-
     # categories: keep unique
     cat = payload.category.strip()
-
+    
 # 1) keep simple list of category names (for your existing UI)
     current_cats = stats.categories or []
     if cat and cat not in current_cats:
         # assign NEW list so ORM sees the change
         stats.categories = current_cats + [cat]
-
-    # 2) maintain aggregated per-category stats
+# 2) maintain aggregated per-category stats
     category_stats = stats.category_stats or {}
     if cat:
         current = category_stats.get(cat, {"total": 0, "correct": 0})
-        current["total"] += 1
-        print("THIS IS MY PAYLOAD: ",payload)
+        current["total"] +=1
         if payload.correct:
-            current["correct"] += 1
-
-        # assign NEW dict so ORM sees the change
-        category_stats = {**category_stats, cat: current}
-        stats.category_stats = category_stats
-
+            current["correct"] +=1
+     # assign NEW dict so ORM sees the change   
+    # category_stats = {**category_stats, cat: current}
+        category_stats[cat] = current
+    stats.category_stats = category_stats
     stats.updated_at = datetime.utcnow()
-
     session.add(stats)
     session.commit()
     session.refresh(stats)

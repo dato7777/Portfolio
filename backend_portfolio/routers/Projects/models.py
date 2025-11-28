@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List,Dict,Any
 from datetime import datetime
 from sqlalchemy import Column, JSON  
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.ext.mutable import MutableList,MutableDict
 
 class Question(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -37,11 +37,9 @@ class QuizStats(SQLModel, table=True):
     )
     category_stats: Dict[str, Dict[str, int]] = Field(
         default_factory=dict,
-        sa_column=Column(JSON)
+        sa_column=Column(MutableDict.as_mutable(JSON))
     )
-
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
