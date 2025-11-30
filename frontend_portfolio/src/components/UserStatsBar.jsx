@@ -1,6 +1,6 @@
 // src/components/UserStatsBar.jsx
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, px } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export default function UserStatsBar({ stats }) {
@@ -236,12 +236,13 @@ export default function UserStatsBar({ stats }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {perCategorySorted.map((cat, idx) => {
                     const barWidth = `${Math.min(Math.max(cat.accuracy, 0), 100)}%`;
+                    console.log(barWidth)
                     const intensity =
-                      cat.accuracy >= 85
-                        ? "from-emerald-400 via-cyan-400 to-sky-400"
+                      cat.accuracy >= 80 && cat.accuracy<=100
+                        ? "from-yellow-400 via-cyan-400 to-green-400"
                         : cat.accuracy >= 60
                           ? "from-yellow-300 via-amber-300 to-orange-300"
-                          : "from-rose-400 via-pink-400 to-purple-400";
+                          : "from-red-400 via-pink-400 to-purple-400";
 
                     return (
                       <motion.div

@@ -21,8 +21,9 @@ export default function HomeInspired() {
 
   const PROJECT_TAGS = [
     "QuizProAI",
-    "Weather"
-    
+    "Weather",
+    "Smart File Organizer"
+
   ];
 
   // easily adjust where the projects will start appearing:
@@ -42,12 +43,12 @@ export default function HomeInspired() {
 
   return (
     <div
-    className="
+      className="
       relative min-h-screen overflow-hidden
       bg-slate-50 text-slate-900
-      dark:bg-slate-950 dark:text-slate-50
+      dark:bg-slate-950 dark:text-slate-100
     "
-  >
+    >
       {/* glowing backdrop */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <motion.div
@@ -59,7 +60,7 @@ export default function HomeInspired() {
 
       <div id="projectsRail" className="fixed right-0 top-0 h-screen w-[280px] pointer-events-none" />
       {/* hero */}
-      <main className="mx-auto max-w-7xl px-6 pt-24 md:pt-28">
+      <main className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         {/* “Show Skills” button */}
         <div className="relative h-28 md:h-32 w-full mb-4 md:mb-6 flex justify-center">
           {showButton && (
@@ -169,7 +170,17 @@ export default function HomeInspired() {
           </span>
         </motion.div>
       )}
-
+      {/* MOBILE: normal button inside flow */}
+      {showProjectsButton && (
+        <div className="mt-6 flex justify-center md:hidden">
+          <button
+            onClick={toggleProjectsList}
+            className="rounded-full bg-indigo-600 text-white px-5 py-2.5 text-sm font-semibold shadow hover:bg-indigo-500 transition"
+          >
+            {showProjectsList ? "Hide Projects" : "Show Projects"}
+          </button>
+        </div>
+      )}
       {/* 🟦 Right “Show Projects” button */}
       {showProjectsButton && (
         <motion.button

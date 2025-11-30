@@ -83,6 +83,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
         access_token = create_access_token(
             {"sub": user.username},
-            expires_delta=timedelta(minutes=60),
+            expires_delta=timedelta(minutes=10),
         )
         return TokenResponse(access_token=access_token)

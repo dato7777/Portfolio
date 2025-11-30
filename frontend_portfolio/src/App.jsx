@@ -9,6 +9,7 @@ import ScrollToTop from "./pages/projects/ScrollToTop";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Contact from "./pages/Contact";
+import SmartFileOrganizer from "./pages/projects/SmartFileOrganizer";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             }
           />
           <Route path="/projects/weather" element={< Weather />} />
+          <Route path="/projects/smartfileorganizer" element={< SmartFileOrganizer />} />
           <Route path="/login" element={< Login />} />
           <Route path="/contact" element={< Contact />} />
 
