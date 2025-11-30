@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from backend_portfolio.db import engine
 from backend_portfolio.auth_utils import get_current_user
-from backend_portfolio.routers.Projects.models import User, QuizStats
-
+from backend_portfolio.routers.Projects.models import User, QuizStats,Question
+from collections import Counter
 router = APIRouter(prefix="/quiz", tags=["Quiz stats"])
 
 

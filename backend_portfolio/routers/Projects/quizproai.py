@@ -159,7 +159,7 @@ def build_prompt_10(category: str, language: str, banlist: list[str]) -> str:
     return f"""
 Return ONLY a JSON array of 10 items (no commentary, no markdown fences).
 
-Each item must be structured as:
+Each item must be structured exactly as:
 {{
   "level": 1,
   "question": "under 220 chars",
@@ -176,13 +176,24 @@ Strict rules:
 - Levels must be integers 1..10 (unique per question).
 - Options must be distinct, concise, and UNLABELED.
 - Exactly ONE correct answer, identical to one of the options.
-- No 'All of the above' / 'None of the above'.
-- Make all 10 questions mutually different.
-- DO NOT repeat or paraphrase any of these previously used questions (normalize case/punctuation when checking):
+- No "All of the above" / "None of the above".
+- Make all 10 questions mutually different in MEANING, not just wording.
+- Do NOT ask the same factual thing twice with slightly different phrasing.
+  For example, these are considered duplicates and only ONE may appear:
+  - "What is the largest desert in the world?"
+  - "What is the largest desert on Earth?"
+  - "What is the capital of Canada?"
+  - "What is the capital city of Canada?"
+- If two questions would have the same factual answer and idea, keep only one version
+  and replace the other with a completely different fact.
+- DO NOT repeat or paraphrase any of these previously used questions
+  (normalize case/punctuation when checking):
 {ban_text}
 
 Quality check BEFORE you output:
-- Verify each "answer" appears verbatim in "options".
+1) Verify each "answer" appears verbatim in "options".
+2) Scan your 10 questions and confirm that no two questions are asking
+   the same real-world fact with different wording.
 """
 
 def generate_10_and_store(session: Session, cat_key: str, category_label: str, language: str) -> int:
@@ -196,8 +207,8 @@ def generate_10_and_store(session: Session, cat_key: str, category_label: str, l
             {"role": "system", "content": "You are an expert multilingual quiz question generator."},
             {"role": "user", "content": prompt},
         ],
-        temperature=0.4,
-        top_p=0.95,
+        temperature=0.7,
+        top_p=0.9,
         presence_penalty=0.1,
         max_tokens=2200,
     )
@@ -249,6 +260,7 @@ async def generate_questions(req: CategoryRequest,
             raise HTTPException(status_code=502, detail="Could not prepare questions. Try again later.")
 
         mark_used(session, unused)
+        random.shuffle(unused)
 
         payload = []
         for q in unused:

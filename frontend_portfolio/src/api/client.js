@@ -29,8 +29,8 @@ api.interceptors.response.use(
       localStorage.removeItem("authUsername");
 
       // Optional: only redirect if we're not already on login page
-      if (window.location.pathname !== "/pages/login") {
-        window.location.href = "/pages/login";
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
 

@@ -89,27 +89,7 @@ export default function QuizProAI() {
   };
 
   // ======== Animate progress bar ========
-  // useEffect(() => {
-  //   if (loading) {
-  //     setProgress(0);
-  //     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-  //     progressIntervalRef.current = setInterval(() => {
-  //       setProgress((prev) => (prev < 95 ? prev + 1 : prev)); // cap at 95 while waiting
-  //     }, 40);
-  //   } else {
-  //     if (progressIntervalRef.current) {
-  //       clearInterval(progressIntervalRef.current);
-  //       progressIntervalRef.current = null;
-  //     }
-  //     setProgress(100);
-  //   }
-  //   return () => {
-  //     if (progressIntervalRef.current) {
-  //       clearInterval(progressIntervalRef.current);
-  //       progressIntervalRef.current = null;
-  //     }
-  //   };
-  // }, [loading]);
+ 
 
   // ======== Backend sync helper: send ONE event (one answered question) ========
   async function syncStatsWithBackend({ correct, timeSpent, category }) {
@@ -141,71 +121,63 @@ export default function QuizProAI() {
   }
 
   // ======== Questions fetch ========
-  const fetchQuestions = async (category, lang) => {
-    setLoading(true);
-    setProgress(5);
+ const fetchQuestions = async (category, lang) => {
+  setLoading(true);
+  setProgress(0);
 
-    // clear any previous interval
+  // clear any previous interval
+  if (progressIntervalRef.current) {
+    clearInterval(progressIntervalRef.current);
+  }
+
+  let fakeProgress = 0;
+  const MAX_BEFORE_DONE = 97;  // can go close to 100 but never hit it
+  const TICK_MS = 200;
+
+  // Smooth fake progress that never reaches 100% on its own
+  progressIntervalRef.current = setInterval(() => {
+    fakeProgress = Math.min(
+      fakeProgress + (Math.random() * 3 + 0.5), // small random steps
+      MAX_BEFORE_DONE
+    );
+    setProgress(Math.floor(fakeProgress));
+  }, TICK_MS);
+
+  try {
+    const res = await api.post(
+      "/quizproai/generate-questions/",
+      { category, language: lang },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    const data = JSON.parse(res.data);
+
+    // stop fake interval as soon as backend is done
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
     }
 
-    let fakeProgress = 5;
-    const startedAt = performance.now();
-    const MAX_BEFORE_DONE = 85;      // don't go beyond this before response
-    const TICK_MS = 150;             // how often we bump progress
-    const MIN_TOTAL_MS = 1000;       // minimum total loading time (feel)
+    // jump to 100% so user sees "done"
+    setProgress(100);
 
-    // Fake progress while waiting for backend
-    progressIntervalRef.current = setInterval(() => {
-      fakeProgress = Math.min(
-        fakeProgress + Math.random() * 12, // random-ish step
-        MAX_BEFORE_DONE
-      );
-      setProgress(Math.floor(fakeProgress));
-    }, TICK_MS);
-
-    try {
-      const res = await api.post(
-        "/quizproai/generate-questions/",
-        { category, language: lang },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      const data = JSON.parse(res.data);
-
-      // Make sure we don't instantly finish if backend was super fast
-      const elapsed = performance.now() - startedAt;
-      const remaining = Math.max(MIN_TOTAL_MS - elapsed, 0);
-
-      setTimeout(() => {
-        // stop fake interval
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-        }
-
-        // quickly animate to 100
-        setProgress(100);
-
-        // small delay so user actually sees 100%
-        setTimeout(() => {
-          setQuestions(data);
-          lastEventTimeRef.current = Date.now();
-          setLoading(false);
-        }, 200);
-      }, remaining);
-    } catch (err) {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-      const msg =
-        err?.response?.data?.detail ||
-        "Could not prepare questions. Try again later.";
-      alert(msg);
-      resetQuiz();
+    // small delay just so 100% is visible
+    setTimeout(() => {
+      setQuestions(data);
+      lastEventTimeRef.current = Date.now();
+      setLoading(false);
+    }, 250);
+  } catch (err) {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
     }
-  };
+    const msg =
+      err?.response?.data?.detail ||
+      "Could not prepare questions. Try again later.";
+    alert(msg);
+    resetQuiz();
+  }
+};
 
   const handleCategoryClick = (category) => {
     if (loading) return;

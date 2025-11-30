@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import JWTError, jwt,ExpiredSignatureError
 from passlib.context import CryptContext
 from sqlmodel import Session, select
 
@@ -15,7 +15,7 @@ from backend_portfolio.routers.Projects.models import User
 # ------------ settings ------------
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-super-secret-change-me")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
@@ -60,6 +60,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
+    except ExpiredSignatureError:
+        print("*** token expired")
+        raise credentials_exception
     except JWTError:
         raise credentials_exception
 

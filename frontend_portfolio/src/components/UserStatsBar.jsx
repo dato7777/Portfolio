@@ -29,15 +29,12 @@ export default function UserStatsBar({ stats }) {
     try {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUsername");
-
     } catch (e) {
       console.warn("Error clearing localStorage on sign-out", e);
     }
 
     setUsername("Guest");
     setOpen(null);
-
-    // go back to login page
     navigate("/login");
   };
 
@@ -45,6 +42,11 @@ export default function UserStatsBar({ stats }) {
     stats && stats.questionsAnswered
       ? Math.round((stats.correctAnswers / stats.questionsAnswered) * 100)
       : 0;
+
+  // Nice sorted list for per-category (most played first)
+  const perCategorySorted = (stats?.perCategory || [])
+    .slice()
+    .sort((a, b) => b.questionsAnswered - a.questionsAnswered);
 
   return (
     <div className="mb-8">
@@ -130,6 +132,7 @@ export default function UserStatsBar({ stats }) {
 
       {/* Dropdowns */}
       <AnimatePresence mode="wait">
+        {/* ================== GLOBAL RESULT STATS ================== */}
         {open === "results" && (
           <motion.div
             key="results-panel"
@@ -192,6 +195,7 @@ export default function UserStatsBar({ stats }) {
           </motion.div>
         )}
 
+        {/* ================== PER-CATEGORY STATS (FANCY) ================== */}
         {open === "categories" && (
           <motion.div
             key="categories-panel"
@@ -200,38 +204,149 @@ export default function UserStatsBar({ stats }) {
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.18 }}
             className="
-              mt-3 rounded-2xl p-5 
-              bg-black/40 border border-cyan-300/40 
-              shadow-[0_0_18px_rgba(0,255,255,0.18)]
+              mt-3 rounded-2xl p-6 
+              bg-black/50 border border-cyan-300/40 
+              shadow-[0_0_26px_rgba(0,255,255,0.25)]
               backdrop-blur
-              text-sm text-cyan-50
+              text-cyan-50
             "
           >
-            {stats?.perCategory && stats.perCategory.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {stats.perCategory.map((cat) => (
-                  <span
-                    key={cat.name}
-                    className="
-          px-3 py-1 rounded-full 
-          bg-cyan-900/40 border border-cyan-400/60
-          text-xs font-semibold tracking-wide
-          shadow-[0_0_10px_rgba(0,255,255,0.2)]
-        "
-                  >
-                    {/* Example: Geography – 80% (4/5) */}
-                    {cat.name} – {cat.accuracy}% ({cat.correctAnswers}/{cat.questionsAnswered})
-                  </span>
-                ))}
-              </div>
+            {perCategorySorted.length > 0 ? (
+              <>
+                {/* Header */}
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-wide text-cyan-100">
+                      Performance by Category
+                    </h3>
+                    <p className="text-xs text-cyan-200/70">
+                      Bigger cards = more questions. Colors & bars = accuracy at a glance.
+                    </p>
+                  </div>
+                  <div className="text-xs text-right text-cyan-200/70">
+                    Total categories played:{" "}
+                    <span className="font-semibold text-cyan-100">
+                      {perCategorySorted.length}
+
+                    </span>
+                  </div>
+                </div>
+
+                {/* Grid of large colorful cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {perCategorySorted.map((cat, idx) => {
+                    const barWidth = `${Math.min(Math.max(cat.accuracy, 0), 100)}%`;
+                    const intensity =
+                      cat.accuracy >= 85
+                        ? "from-emerald-400 via-cyan-400 to-sky-400"
+                        : cat.accuracy >= 60
+                          ? "from-yellow-300 via-amber-300 to-orange-300"
+                          : "from-rose-400 via-pink-400 to-purple-400";
+
+                    return (
+                      <motion.div
+                        key={cat.name}
+                        whileHover={{ scale: 1.03, y: -4 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 16 }}
+                        className="
+                          relative overflow-hidden rounded-2xl p-4 
+                          bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/50
+                          border border-cyan-400/35
+                          shadow-[0_0_22px_rgba(0,255,255,0.18)]
+                        "
+                      >
+                        {/* glow accent in corner */}
+                        <div
+                          className={`
+                            pointer-events-none absolute -right-10 -top-10 w-32 h-32 rounded-full 
+                            bg-gradient-to-br ${intensity} blur-3xl opacity-60
+                          `}
+                        />
+
+                        {/* Category name + accuracy pill */}
+                        <div className="relative flex items-start justify-between gap-2 mb-3">
+                          <div>
+                            <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/70 mb-1">
+                              Category
+                            </div>
+                            <div className="text-xl font-semibold">
+                              {cat.name}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] uppercase tracking-widest text-cyan-200/70">
+                              Accuracy
+                            </span>
+                            <span className="mt-0.5 inline-flex items-baseline gap-1 px-2.5 py-1 rounded-full text-sm font-semibold bg-black/40 border border-cyan-300/60 shadow-[0_0_12px_rgba(0,255,255,0.35)]">
+                              <span className="text-lg">{cat.accuracy}</span>
+                              <span className="text-xs">%</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="relative mt-1 mb-3">
+                          <div className="h-2.5 w-full rounded-full bg-slate-800/80 overflow-hidden border border-cyan-300/30">
+                            <div
+                              className={`
+                                h-full rounded-full bg-gradient-to-r ${intensity}
+                              `}
+                              style={{ width: barWidth }}
+                            />
+                          </div>
+                          <div className="mt-1 flex justify-between text-[11px] text-cyan-200/80">
+                            <span>0%</span>
+                            <span>50%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+
+                        {/* Counters */}
+                        <div className="relative flex items-center justify-between mt-2 text-xs sm:text-sm">
+                          <div>
+                            <div className="text-cyan-200/80 uppercase tracking-widest text-[10px] mb-0.5">
+                              Questions
+                            </div>
+                            <div className="font-semibold">
+                              {cat.questionsAnswered}
+                              <span className="text-cyan-200/80 text-[11px] ml-1">
+                                answered
+                              </span>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-green-200/80 uppercase tracking-widest text-[10px] mb-0.5">
+                              Correct
+                            </div>
+                            <div className="font-semibold text-green-300">
+                              {cat.correctAnswers}
+                              <span className="text-green-200/80 text-[11px] ml-1">
+                                correct
+                              </span>
+                            </div>
+                          </div>
+                          <div className="hidden sm:block text-[11px] text-cyan-200/75">
+                            ({cat.correctAnswers}/{cat.questionsAnswered})
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
-              <div className="opacity-70">
-                No categories played yet. Start a quiz to see history here.
+              <div className="opacity-80 text-sm">
+                No categories played yet. Start a quiz to see your performance
+                by topic here.
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
+
+
     </div>
+
   );
 }
