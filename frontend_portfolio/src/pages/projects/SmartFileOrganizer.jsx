@@ -124,9 +124,11 @@ export default function SmartFileOrganizer() {
                     Smart File Organizer
                 </h1>
                 <p className="text-sm md:text-base text-slate-200/80 max-w-2xl mx-auto">
-                    Give me one messy folder (as a <span className="font-semibold">.zip</span>) and I&apos;ll send back
-                    a clean structure: files grouped by{" "}
-                    <span className="font-semibold">type</span> and{" "}
+                    Give me one messy folder (as a{" "}
+                    <span className="font-semibold">.zip</span>) and I&apos;ll send back
+                    a clean structure: files grouped into{" "}
+                    <span className="font-semibold">Images, Documents, Code, Archives, Audio, Video</span>{" "}
+                    (and more), then further organized by{" "}
                     <span className="font-semibold">modification date</span>.
                 </p>
             </motion.div>
@@ -160,7 +162,37 @@ export default function SmartFileOrganizer() {
                             You get an <span className="font-semibold">organized_*.zip</span> to download and inspect.
                         </li>
                     </ol>
-
+                    <div className="mt-4 text-xs md:text-[13px] text-slate-100/85">
+                        <p className="font-semibold mb-1 text-emerald-200">
+                            How files are grouped:
+                        </p>
+                        <ul className="list-disc ml-4 space-y-1">
+                            <li>
+                                <span className="font-semibold text-emerald-300">Images</span> – jpg,
+                                png, gif, webp, heic…
+                            </li>
+                            <li>
+                                <span className="font-semibold text-emerald-300">Documents</span> – pdf,
+                                docx, txt, xlsx, pptx…
+                            </li>
+                            <li>
+                                <span className="font-semibold text-emerald-300">Code</span> – py, js,
+                                ts, html, css, json…
+                            </li>
+                            <li>
+                                <span className="font-semibold text-emerald-300">Archives</span> – zip,
+                                rar, 7z, tar, gz…
+                            </li>
+                            <li>
+                                <span className="font-semibold text-emerald-300">Audio / Video</span> – mp3,
+                                wav, mp4, mkv, etc.
+                            </li>
+                            <li>
+                                <span className="font-semibold text-emerald-300">Other</span> – anything
+                                that doesn&apos;t fit above.
+                            </li>
+                        </ul>
+                    </div>
                     <div className="mt-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-300/40 text-xs md:text-[13px] text-emerald-50">
                         <span className="font-semibold">Tech highlight:</span>{" "}
                         Same core logic powers a desktop app built with{" "}
@@ -236,8 +268,8 @@ export default function SmartFileOrganizer() {
                     {message && (
                         <div
                             className={`mt-3 text-xs md:text-[13px] rounded-xl px-3 py-2 ${status === "error"
-                                    ? "bg-red-500/15 border border-red-400/60 text-red-100"
-                                    : "bg-emerald-500/15 border border-emerald-400/60 text-emerald-50"
+                                ? "bg-red-500/15 border border-red-400/60 text-red-100"
+                                : "bg-emerald-500/15 border border-emerald-400/60 text-emerald-50"
                                 }`}
                         >
                             {message}
