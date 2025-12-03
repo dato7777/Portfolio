@@ -2,6 +2,7 @@
 import os
 import shutil
 import datetime
+from collections import defaultdict
 
 # --- Type groups for smarter folders ---
 
@@ -30,6 +31,7 @@ TYPE_GROUPS = {
     },
 }
 
+
 def get_type_group(ext: str) -> str:
     """
     Given an extension like 'pdf' or 'jpg', return a human-friendly
@@ -41,12 +43,33 @@ def get_type_group(ext: str) -> str:
             return group_name
     return "Other"
 
-def organize_files_by_type(base_folder: str) -> None:
+
+def organize_files_by_type(base_folder: str) -> dict:
     """
     Walks the base folder, and for each file:
     - Detects its type group (Images, Documents, Code, etc.)
     - Moves it into <group>/<YYYY-MM-DD (Mon DD, YYYY)>/<filename>
+
+    Returns a stats dict like:
+    {
+      "total_files": int,
+      "total_bytes": int,
+      "non_empty_groups": int,
+      "groups": {
+        "Images": {"count": int, "bytes": int},
+        "Documents": {...},
+        ...
+      }
+    }
     """
+    group_stats = defaultdict(lambda: {
+        "count": 0,
+        "bytes": 0,
+    })
+
+    total_files = 0
+    total_bytes = 0
+
     for entry in os.listdir(base_folder):
         full_path = os.path.join(base_folder, entry)
 
@@ -54,8 +77,11 @@ def organize_files_by_type(base_folder: str) -> None:
         if not os.path.isfile(full_path):
             continue
 
+        # File size before moving
+        size = os.path.getsize(full_path)
+
         # Split extension: "report.pdf" -> ("report", ".pdf")
-        name, ext = os.path.splitext(entry)
+        _, ext = os.path.splitext(entry)
         ext = ext.lstrip(".").lower()  # ".PDF" -> "pdf"
 
         group = get_type_group(ext)  # e.g. "Documents", "Images", "Other"
@@ -77,8 +103,26 @@ def organize_files_by_type(base_folder: str) -> None:
 
         # Final destination
         target_path = os.path.join(date_folder, entry)
-
         shutil.move(full_path, target_path)
+
+        # Update stats
+        total_files += 1
+        total_bytes += size
+
+        group_entry = group_stats[group]
+        group_entry["count"] += 1
+        group_entry["bytes"] += size
+
+    groups_clean = {name: dict(info) for name, info in group_stats.items()}
+    non_empty_groups = len(groups_clean)
+
+    return {
+        "total_files": total_files,
+        "total_bytes": total_bytes,
+        "non_empty_groups": non_empty_groups,
+        "groups": groups_clean,
+    }
+
 
 def move_existing_folders_to_organized(folder_path: str) -> None:
     """
