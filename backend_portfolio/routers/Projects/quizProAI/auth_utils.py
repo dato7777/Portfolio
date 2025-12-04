@@ -10,12 +10,12 @@ from passlib.context import CryptContext
 from sqlmodel import Session, select
 
 from backend_portfolio.db import engine
-from backend_portfolio.routers.Projects.models import User
+from backend_portfolio.routers.Projects.quizProAI.models import User
 
 # ------------ settings ------------
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-super-secret-change-me")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 10  # 1 minute for testing
+ACCESS_TOKEN_EXPIRE_MINUTES = 10  # 10 minute for testing
 
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],

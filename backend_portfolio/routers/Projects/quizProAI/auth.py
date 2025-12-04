@@ -4,17 +4,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
-
 from backend_portfolio.db import engine
-from backend_portfolio.routers.Projects.models import User
-from backend_portfolio.auth_utils import (
+from backend_portfolio.routers.Projects.quizProAI.models import User
+from backend_portfolio.routers.Projects.quizProAI.auth_utils import (
     get_password_hash,
     verify_password,
     create_access_token,
 )
-
 router = APIRouter(prefix="/auth", tags=["Auth"])
-
 
 # --------- Pydantic schemas ----------
 class SignupRequest(BaseModel):
@@ -22,22 +19,18 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
 
-
 class LoginRequest(BaseModel):
     username: str
     password: str
-
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
 # --------- helpers ----------
 def username_or_email_exists(session: Session, username: str, email: str) -> bool:
     stmt = select(User).where((User.username == username) | (User.email == email))
     return session.exec(stmt).first() is not None
-
 
 # --------- routes ----------
 @router.post("/signup", response_model=TokenResponse)
@@ -51,7 +44,6 @@ def signup(data: SignupRequest):
               status_code=status.HTTP_400_BAD_REQUEST,
               detail="Username or email already in use.",
           )
-
       user = User(
           username=data.username,
           email=data.email,
@@ -64,7 +56,6 @@ def signup(data: SignupRequest):
       # create token
       access_token = create_access_token({"sub": user.username})
       return TokenResponse(access_token=access_token)
-
 
 @router.post("/login", response_model=TokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -80,7 +71,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password.",
             )
-
         access_token = create_access_token(
             {"sub": user.username},
             expires_delta=timedelta(minutes=10),

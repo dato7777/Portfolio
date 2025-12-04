@@ -1,16 +1,16 @@
 from fastapi import FastAPI
 # from backend_portfolio.routers import about, home # ✅ 'routers' is the folder, 'about' is the file
 from fastapi.middleware.cors import CORSMiddleware
-from backend_portfolio.routers.Projects.quizproai import router as quizproai_router
+from backend_portfolio.routers.Projects.quizProAI.quizproai import router as quizproai_router
 from contextlib import asynccontextmanager
 from sqlmodel import SQLModel
 from backend_portfolio.db import engine
-from backend_portfolio.routers.Projects import models as quiz_models
-from backend_portfolio.routers.Projects import quizproai
-from backend_portfolio.routers.Projects.weather import router as weather_router
-from backend_portfolio.routers.auth import router as auth_router
-from backend_portfolio.routers.Projects.quiz_stats import router as quiz_stats_router
-from backend_portfolio.routers.Projects.file_organizer import router as file_organizer_router
+from backend_portfolio.routers.Projects.quizProAI import models as quiz_models
+from backend_portfolio.routers.Projects.quizProAI import quizproai
+from backend_portfolio.routers.Projects.weather.weather import router as weather_router
+from backend_portfolio.routers.Projects.quizProAI.auth import router as auth_router
+from backend_portfolio.routers.Projects.quizProAI.quiz_stats import router as quiz_stats_router
+from backend_portfolio.routers.Projects.file_organizer.file_organizer import router as file_organizer_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

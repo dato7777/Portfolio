@@ -9,7 +9,7 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 
-from .file_organizer_core import (
+from ..file_organizer.file_organizer_core import (
     organize_files_by_type,
     move_existing_folders_to_organized,
 )

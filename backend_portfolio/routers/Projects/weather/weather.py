@@ -13,6 +13,7 @@ API_KEY = os.getenv("OPENWEATHER_API_KEY")
 router = APIRouter(prefix="/weather", tags=["Weather"])
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+print("*** BASE DIR IS: ",BASE_DIR)
 CITY_PATH = os.path.join(BASE_DIR, "data", "city.list.json")
 GEONAMES_CITIES = []
 

@@ -5,16 +5,14 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from backend_portfolio.db import engine
-from backend_portfolio.auth_utils import get_current_user
-from backend_portfolio.routers.Projects.models import User, QuizStats,Question
+from backend_portfolio.routers.Projects.quizProAI.auth_utils import get_current_user
+from backend_portfolio.routers.Projects.quizProAI.models import User, QuizStats,Question
 from collections import Counter
 router = APIRouter(prefix="/quiz", tags=["Quiz stats"])
-
 
 def get_session():
     with Session(engine) as session:
         yield session
-
 
 # ---------- Pydantic schemas ----------
 
@@ -39,21 +37,18 @@ class QuizStatsOut(BaseModel):
     categories: List[str]
     perCategory: List[CategoryStatOut] # NEW
 
-
 # ---------- Helper to get or create stats row ----------
 
 def _get_or_create_stats(session: Session, user_id: int) -> QuizStats:
     stats = session.exec(
         select(QuizStats).where(QuizStats.user_id == user_id)
     ).first()
-
     if not stats:
         stats = QuizStats(user_id=user_id)
         session.add(stats)
         session.commit()
         session.refresh(stats)
     return stats
-
 
 def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
     if stats.questions_answered:
@@ -72,7 +67,6 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
             cat_accuracy = (correct / total) * 100
         else:
             cat_accuracy = 0.0
-
         per_category.append(
             CategoryStatOut(
                 name=cat,
@@ -90,9 +84,7 @@ def _build_stats_out(stats: QuizStats) -> QuizStatsOut:
         bestStreak=stats.best_streak,
         categories=stats.categories or [],
         perCategory=per_category,
-        
     )
-
 
 # ---------- GET stats for current user ----------
 
@@ -104,7 +96,6 @@ def get_my_stats(
     stats = _get_or_create_stats(session, current_user.id)
     
     return _build_stats_out(stats)
-
 
 # ---------- POST: register one quiz "event" (e.g. one answered question) ----------
 

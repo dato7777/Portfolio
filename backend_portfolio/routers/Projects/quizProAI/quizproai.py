@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from sqlmodel import Session, select
 from .models import Question, User
 from backend_portfolio.db import engine
-from backend_portfolio.auth_utils import get_current_user
+from backend_portfolio.routers.Projects.quizProAI.auth_utils import get_current_user
 
 import os, json, re, datetime, random  # 👈 random added
 
