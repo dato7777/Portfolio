@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Query
-from .scrapers.manager import search_all
+from .scrapers.manager import search_all,get_categories
 
 router = APIRouter(prefix="/scrapers")
 
 from fastapi import APIRouter, Query
 from .scrapers.manager import search_all
-
-router = APIRouter(prefix="/scrapers")
 
 @router.get("/sources")
 def list_sources():
@@ -17,3 +15,8 @@ def search(q: str, sources: str = "all"):
     # parse sources, call manager.search_all
     results = search_all(q)
     return {"query": q, "results": results}
+
+@router.get("/getCategories")
+def getCats():
+    results=get_categories()
+    return results
