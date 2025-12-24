@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Contact from "./pages/Contact";
 import SmartFileOrganizer from "./pages/projects/SmartFileOrganizer";
+import BuySmart from "./pages/projects/BuySmart";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           />
           <Route path="/projects/weather" element={< Weather />} />
           <Route path="/projects/smartfileorganizer" element={< SmartFileOrganizer />} />
+          <Route path="/projects/buysmart" element={< BuySmart />} />
           <Route path="/login" element={< Login />} />
           <Route path="/contact" element={< Contact />} />
 

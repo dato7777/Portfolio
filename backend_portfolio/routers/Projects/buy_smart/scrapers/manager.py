@@ -1,19 +1,19 @@
 from .hetzi_hinam import HetziHinamScraper
 # from .shufersal import ShufersalScraper
 from concurrent.futures import ThreadPoolExecutor
-
+import traceback
 SCRAPERS = [HetziHinamScraper()]
 
-def search_all(q, category_id=None):
+def search_all(q):
     results = []
     with ThreadPoolExecutor(max_workers=4) as ex:
-        futures = [ex.submit(s.search, q, 1, 50) for s in SCRAPERS]
+        futures = [ex.submit(s.search, q) for s in SCRAPERS]
         for f in futures:
             try:
                 results.append(f.result())
-            except Exception:
-                # log
-                pass
+            except Exception as e:
+                print("SCRAPER ERROR:", repr(e))
+                traceback.print_exc()
     return results
 
 def get_categories():
