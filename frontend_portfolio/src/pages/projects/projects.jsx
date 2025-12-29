@@ -24,6 +24,13 @@ const project_list = [
     tech: "Python · Tkinter · OS / shutil · Desktop Automation",
     color: "from-amber-400/30 via-orange-500/20 to-emerald-500/25",
   },
+  {
+    name: "Buy Smart",
+    description:
+      "Real-time grocery price lookup and comparison engine that searches multiple online supermarkets.",
+    tech: "Python · FastAPI · httpx · Concurrent Scrapers · React · Framer Motion · Tailwind CSS",
+    color: "from-lime-400/25 via-emerald-400/20 to-cyan-600/25",
+  },
 ];
 
 export default function Projects() {

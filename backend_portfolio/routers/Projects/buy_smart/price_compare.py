@@ -14,7 +14,7 @@ def list_sources():
 def search(q: str, sources: str = "all"):
     # parse sources, call manager.search_all
     results = search_all(q)
-    return {"query": q, "results": results}
+    return {"query": q, "results": results, "total_results":len(results[0]["searched_results"])}
 
 @router.get("/getCategories")
 def getCats():

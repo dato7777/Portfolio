@@ -98,11 +98,23 @@ class HetziHinamScraper:
             return {"IsOK": False, "Results": None, "ErrorResponse": {"ErrorDescription": "Empty response body"}}
 
         data = r.json()
-        prod_names = [
-            item["Name"]
-            for cat in data.get("Results", {}).get("Categories", [])
-            for item in cat.get("Items", [])]
-        
-        return prod_names
+        searched_results=[]
+        for cat in data.get("Results",{}).get("Categories",[]):
+            for item in cat.get("Items",[]):
+                searched_results.append({
+                "prod_id":item.get("Id"),
+                "prod_name":item.get("Name"),
+                "prod_img":item.get("Img"),
+                "prod_cat_id":item.get("CategoryId"),
+                "prod_cat_name":item.get("CategoryName"),
+                "prod_sub_cat_id":item.get("SubCategoryId"),
+                "prod_sub_cat_name":item.get("SubCategoryName"),
+                "prod_unit_size_desc":item.get("UnitSizeDesc"),
+                "prod_unit_size":item.get("UnitSize"),
+                "prod_price_per_unit":item.get("PricePerUnit"),
+                "prod_price_net":item.get("Price_NET"),
+                "prod_price_un_desc":item.get("PricePerUnitDesc")
+                })
+        return {"searched_results":searched_results}
             
         

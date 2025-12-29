@@ -25,25 +25,30 @@ export default function BuySmart() {
     n == null || Number.isNaN(Number(n)) ? "—" : `₪${Number(n).toFixed(2)}`;
 
   const normalizeHetzi = (payload) => {
-    // My scraper currently returns: { query, results: [ <hetzi response dict> ] }
-    // where hetzi response has: {IsOK, Results:{SubCategories:[{Items:[...]}]}}
-    const container = payload?.results?.[0];
-    const ok = container?.IsOK;
+    // Backend returns: { query, results: [ ... ] }
+    // Each block might contain: { searched_results: [...] }
+    const container = payload?.results?.[0] ?? payload;
 
-    const subs = container?.Results?.SubCategories || [];
-    const items = subs.flatMap((sc) => Array.isArray(sc?.Items) ? sc.Items.map((it) => ({
-      source: "hetzi-hinam",
-      subCategory: sc?.Name,
-      id: it?.Id,
-      name: it?.Name,
-      image: it?.ImgBig || it?.Img,
-      unit: it?.UnitSizeDesc || it?.MidaKod || "",
-      price: it?.Price_Regular ?? it?.Price_NET ?? it?.PricePerUnit ?? null,
-      pricePerUnitDesc: it?.PricePerUnitDesc || "",
-      inStock: it?.IsInStock,
-      isWeight: it?.IsShakil,
-      raw: it,
-    })) : []);
+    const resultsBlocks = Array.isArray(container?.results)
+      ? container.results
+      : [container];
+
+    const ok = container?.IsOK ?? true;
+
+    const items = resultsBlocks.flatMap((block) => {
+      const arr = Array.isArray(block?.searched_results) ? block.searched_results : [];
+      return arr.map((it) => ({
+        source: "hetzi-hinam",
+        subCategory: it?.prod_sub_cat_name,
+        id: it?.prod_id,
+        name: it?.prod_name,
+        image: it?.prod_img,
+        unit: it?.prod_unit_size_desc || "",
+        price: it?.prod_price_per_unit ?? it?.prod_price_net ?? null,
+        pricePerUnitDesc: it?.prod_price_un_desc || "",
+        raw: it,
+      }));
+    });
 
     const errDesc =
       container?.ErrorResponse?.ErrorDescription ||
@@ -59,20 +64,17 @@ export default function BuySmart() {
     };
   };
 
-  const { normalized, topCheapest } = useMemo(() => {
-    if (!rawResults) return { normalized: null, topCheapest: [] };
+  const { normalized, orderedResults } = useMemo(() => {
+    if (!rawResults) return { normalized: null, orderedResults: [] };
 
-    // Right now only Hetzi-Hinam exists. Later you can merge multi-sources here.
     const hetzi = normalizeHetzi(rawResults);
 
-    const cheapest = [...(hetzi.items || [])]
-      .filter((x) => x.price != null)
-      .sort((a, b) => Number(a.price) - Number(b.price))
-      .slice(0, 12);
+    // IMPORTANT: keep backend order (no sorting). Just cap how many to show for UI.
+    const ordered = hetzi.items || []
 
     return {
       normalized: { hetzi },
-      topCheapest: cheapest,
+      orderedResults: ordered,
     };
   }, [rawResults]);
 
@@ -109,7 +111,7 @@ export default function BuySmart() {
       });
 
       setRawResults(res.data);
-      // Scroll results into view
+
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
@@ -137,13 +139,9 @@ export default function BuySmart() {
       setError("");
       try {
         const res = await axios.get(`${API_BASE}/scrapers/getCategories`, { timeout: 25000 });
-        // expecting: [{ source: "hetzi", data: [{id,name}, ...] }]
         setCategories(res.data || []);
       } catch (e) {
-        const msg =
-          e?.response?.data?.detail ||
-          e?.message ||
-          "Failed to fetch categories.";
+        const msg = e?.response?.data?.detail || e?.message || "Failed to fetch categories.";
         setError(msg);
       } finally {
         setCatsLoading(false);
@@ -197,17 +195,18 @@ export default function BuySmart() {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-base md:text-lg font-semibold text-cyan-50 truncate">
+            {/* CHANGED: removed truncate, allow wrap, allow breaking long words */}
+            <div className="text-base md:text-lg font-semibold text-cyan-50 whitespace-normal break-words leading-snug">
               {safeText(p.name)}
             </div>
-            <div className="text-xs text-cyan-200/70 mt-0.5">
+
+            <div className="text-xs text-cyan-200/70 mt-1">
               {p.subCategory ? `Category: ${p.subCategory}` : ""}
               {p.unit ? ` • Unit: ${p.unit}` : ""}
-              {p.isWeight != null ? ` • Sold by: ${p.isWeight ? "weight" : "unit"}` : ""}
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <div className="text-xs uppercase tracking-widest text-yellow-200/70">
               Price
             </div>
@@ -223,16 +222,7 @@ export default function BuySmart() {
           </div>
         ) : null}
 
-        <div className="mt-3 flex items-center gap-2">
-          <span
-            className={`
-              text-[11px] px-2 py-1 rounded-full border
-              ${p.inStock ? "border-green-400/40 text-green-200 bg-green-400/10" : "border-red-400/40 text-red-200 bg-red-400/10"}
-            `}
-          >
-            {p.inStock ? "In stock" : "Out of stock"}
-          </span>
-
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/30 text-cyan-100/80 bg-white/5">
             Source: {p.source}
           </span>
@@ -249,7 +239,6 @@ export default function BuySmart() {
 
   return (
     <div className="relative min-h-screen text-white overflow-y-auto flex flex-col items-center justify-start pt-24 pb-32">
-      {/* Background (same vibe as your Weather Lab) */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#020617] via-[#040a20] to-black" />
       <motion.div
         className="absolute -top-32 -left-32 w-[160vw] h-[160vw] rounded-full bg-[radial-gradient(circle_at_center,rgba(30,150,255,0.12)_0%,transparent_70%)] -z-10"
@@ -257,7 +246,6 @@ export default function BuySmart() {
         transition={{ duration: 240, repeat: Infinity, ease: "linear" }}
       />
 
-      {/* Title */}
       <motion.h1
         className="text-4xl md:text-6xl font-extrabold mb-4 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.35)]"
         initial={{ opacity: 0, y: -18 }}
@@ -267,12 +255,10 @@ export default function BuySmart() {
         🛒 BuySmart Lab
       </motion.h1>
 
-      {/* Hint */}
       <div className="mt-2 mb-8 px-4 py-2 rounded-full border border-cyan-400/30 bg-white/10 backdrop-blur text-cyan-100 shadow-[0_0_20px_rgba(0,255,255,0.1)]">
         {hint}
       </div>
 
-      {/* Search bar */}
       <motion.div
         className="z-20 w-full max-w-3xl px-4"
         initial={{ opacity: 0, y: -8 }}
@@ -308,13 +294,8 @@ export default function BuySmart() {
             </motion.button>
           </div>
 
-          {/* Controls row */}
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <PillButton
-              tone="cyan"
-              active={catsOpen}
-              onClick={toggleCategories}
-            >
+            <PillButton tone="cyan" active={catsOpen} onClick={toggleCategories}>
               {catsOpen ? "Hide Categories" : "Show Categories"}
             </PillButton>
 
@@ -331,13 +312,11 @@ export default function BuySmart() {
               Clear
             </PillButton>
 
-            {/* Future: sources filter (UI placeholder) */}
             <div className="px-3 py-1.5 rounded-full border border-cyan-300/30 bg-white/5 text-xs text-cyan-100/70">
               Sources: {sourceFilter} (UI ready; backend can use later)
             </div>
           </div>
 
-          {/* Error */}
           <AnimatePresence>
             {error ? (
               <motion.div
@@ -351,7 +330,6 @@ export default function BuySmart() {
             ) : null}
           </AnimatePresence>
 
-          {/* Categories panel */}
           <AnimatePresence mode="wait">
             {catsOpen ? (
               <motion.div
@@ -384,10 +362,7 @@ export default function BuySmart() {
                           {(block.data || []).slice(0, 60).map((c) => (
                             <button
                               key={c.id}
-                              onClick={() => {
-                                // optional: click category just pre-fills query with category name
-                                setQuery(c.name || "");
-                              }}
+                              onClick={() => setQuery(c.name || "")}
                               className="
                                 px-3 py-1.5 rounded-full text-xs font-semibold
                                 bg-cyan-900/35 border border-cyan-400/40 text-cyan-100
@@ -412,7 +387,6 @@ export default function BuySmart() {
         </div>
       </motion.div>
 
-      {/* Results */}
       <div ref={resultsRef} className="z-20 w-full max-w-5xl px-4 mt-10">
         <AnimatePresence mode="wait">
           {loading ? (
@@ -434,7 +408,6 @@ export default function BuySmart() {
               transition={{ duration: 0.35 }}
               className="space-y-6"
             >
-              {/* Summary strip */}
               <div className="rounded-3xl p-5 bg-white/5 border border-cyan-400/30 backdrop-blur shadow-[0_0_22px_rgba(0,255,255,0.10)]">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
@@ -447,8 +420,9 @@ export default function BuySmart() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {/* CHANGED: label + count based on orderedResults */}
                     <span className="text-xs px-3 py-1.5 rounded-full border border-yellow-300/40 bg-yellow-400/10 text-yellow-100">
-                      Cheapest shown: {topCheapest.length}
+                      Results shown: {orderedResults.length}
                     </span>
                     <span className="text-xs px-3 py-1.5 rounded-full border border-cyan-300/40 bg-cyan-400/10 text-cyan-100">
                       Source: hetzi-hinam (for now)
@@ -463,11 +437,11 @@ export default function BuySmart() {
                 ) : null}
               </div>
 
-              {/* Cheapest grid */}
-              {topCheapest.length > 0 ? (
+              {/* CHANGED: show orderedResults (backend order) */}
+              {orderedResults.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {topCheapest.map((p, idx) => (
-                    <ProductCard key={`${p}-${idx}`} p={p} />
+                  {orderedResults.map((p, idx) => (
+                    <ProductCard key={`${p.id ?? "p"}-${idx}`} p={p} />
                   ))}
                 </div>
               ) : (
@@ -476,7 +450,6 @@ export default function BuySmart() {
                 </div>
               )}
 
-              {/* Raw toggle hint */}
               <details className="mt-4 rounded-2xl bg-black/30 border border-cyan-300/20 p-4">
                 <summary className="cursor-pointer text-sm text-cyan-200/80">
                   Debug: show raw response JSON
