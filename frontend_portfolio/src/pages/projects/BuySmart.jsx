@@ -44,9 +44,13 @@ export default function BuySmart() {
         name: it?.prod_name,
         image: it?.prod_img,
         unit: it?.prod_unit_size_desc || "",
-        price: it?.prod_price_per_unit ?? it?.prod_price_net ?? null,
+        price: it?.prod_price_net ?? it?.prod_price_per_unit ?? null,
         pricePerUnitDesc: it?.prod_price_un_desc || "",
         raw: it,
+        p_link: "https://shop.hazi-hinam.co.il/catalog/products/" +
+          it?.prod_id + "/" +
+          it?.prod_barkod + "/" +
+          it?.prod_name
       }));
     });
 
@@ -231,7 +235,28 @@ export default function BuySmart() {
             <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/30 text-cyan-100/80 bg-white/5">
               ID: {p.id}
             </span>
+
           )}
+          <a
+  href={p.p_link}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    inline-flex items-center justify-center
+    text-[11px] font-semibold
+    px-2 py-1
+    rounded-full
+    border border-cyan-300/40
+    bg-gradient-to-r from-cyan-500/20 to-blue-600/20
+    shadow-[0_0_16px_rgba(0,255,255,0.18)]
+    backdrop-blur-md
+    transition-all duration-300
+    hover:brightness-125 hover:scale-[1.04] hover:shadow-[0_0_24px_rgba(255,255,0,0.22)]
+    active:scale-95
+  "
+>
+  Link To Product
+</a>
         </div>
       </div>
     </motion.div>

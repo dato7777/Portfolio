@@ -113,7 +113,8 @@ class HetziHinamScraper:
                 "prod_unit_size":item.get("UnitSize"),
                 "prod_price_per_unit":item.get("PricePerUnit"),
                 "prod_price_net":item.get("Price_NET"),
-                "prod_price_un_desc":item.get("PricePerUnitDesc")
+                "prod_price_un_desc":item.get("PricePerUnitDesc"),
+                "prod_barkod":item.get("BarKod")
                 })
         return {"searched_results":searched_results}
             
