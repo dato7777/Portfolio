@@ -21,5 +21,7 @@ class PriceSnapshot(SQLModel, table=True):
     product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     price: float
     unit: Optional[str] = None
+    unit_size:Optional[str]=None
+    price_per_unit_desc: Optional[str]=None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     url: Optional[str] = None

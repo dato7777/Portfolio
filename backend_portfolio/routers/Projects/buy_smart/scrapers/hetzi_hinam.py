@@ -2,7 +2,8 @@ import time
 import httpx
 from urllib.parse import unquote
 import json
-from .scrapers_register import register_source,register_product
+from .scrapers_register import register_source,register_product,register_PriceSnapshot
+
 class HetziHinamScraper:
     name = "hetzi"
     BASE = "https://shop.hazi-hinam.co.il"
@@ -90,14 +91,9 @@ class HetziHinamScraper:
             "Object": {"SearchPhrase": q, "SearchPhrases": None, "ItemGroupping": 1},
             "Paging": {"Page": page, "PageSize": page_size},
         }
-
         r = self._request_with_guest("POST", "/proxy/api/item/getItemsBySearch", json=payload)
-        print("cookies now:", self.client.cookies)
-        print("status:", r.status_code)
-        # Sometimes they return empty body on auth failures; guard JSON parse.
         if not r.content:
             return {"IsOK": False, "Results": None, "ErrorResponse": {"ErrorDescription": "Empty response body"}}
-
         data = r.json()
         searched_results=[]
         for cat in data.get("Results",{}).get("Categories",[]):
@@ -108,6 +104,14 @@ class HetziHinamScraper:
                     prod_name=item.get("Name"),
                     prod_category=item.get("CategoryName"),
                     image_url=item.get("Img")
+                )
+                register_PriceSnapshot(
+                    product_id=p.id,
+                    price=item.get("Price_NET"),
+                    unit=item.get("UnitSizeDesc"),
+                    unit_size=item.get("UnitSize"),
+                    price_per_unit_desc=item.get("PricePerUnitDesc"),
+                    url=f"{self.BASE}/catalog/products/{item.get('Id')}/{item.get('BarKod')}/{item.get('Name')}",
                 )
                 searched_results.append({
                 "prod_id":item.get("Id"),

@@ -17,7 +17,7 @@ from backend_portfolio.routers.Projects.weather.weather import router as weather
 from backend_portfolio.routers.Projects.quizProAI.auth import router as auth_router
 from backend_portfolio.routers.Projects.quizProAI.quiz_stats import router as quiz_stats_router
 from backend_portfolio.routers.Projects.file_organizer.file_organizer import router as file_organizer_router
-
+from backend_portfolio.routers.Projects.buy_smart.scrapers.history_api import router as buy_smart_history_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     SQLModel.metadata.create_all(
@@ -54,4 +54,4 @@ app.include_router(weather_router)
 app.include_router(quiz_stats_router)
 app.include_router(file_organizer_router)
 app.include_router(buy_smart_router)
-
+app.include_router(buy_smart_history_router)
