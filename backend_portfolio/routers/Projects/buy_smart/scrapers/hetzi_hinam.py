@@ -2,7 +2,7 @@ import time
 import httpx
 from urllib.parse import unquote
 import json
-
+from .scrapers_register import register_source,register_product
 class HetziHinamScraper:
     name = "hetzi"
     BASE = "https://shop.hazi-hinam.co.il"
@@ -84,7 +84,8 @@ class HetziHinamScraper:
         cats = results.get("Categories", [])
         return [{"id": c.get("Id"), "name": c.get("Name")} for c in cats]
 
-    def search(self, q: str, page: int = 1, page_size: int = 50):
+    def search(self, q: str, page: int = 1, page_size: int = 10):
+        src=register_source(name=self.name,base_url=self.BASE)
         payload = {
             "Object": {"SearchPhrase": q, "SearchPhrases": None, "ItemGroupping": 1},
             "Paging": {"Page": page, "PageSize": page_size},
@@ -101,6 +102,13 @@ class HetziHinamScraper:
         searched_results=[]
         for cat in data.get("Results",{}).get("Categories",[]):
             for item in cat.get("Items",[]):
+                p = register_product(
+                    source_id=src.id,
+                    external_prod_id=item.get("Id"),
+                    prod_name=item.get("Name"),
+                    prod_category=item.get("CategoryName"),
+                    image_url=item.get("Img")
+                )
                 searched_results.append({
                 "prod_id":item.get("Id"),
                 "prod_name":item.get("Name"),
@@ -116,6 +124,9 @@ class HetziHinamScraper:
                 "prod_price_un_desc":item.get("PricePerUnitDesc"),
                 "prod_barkod":item.get("BarKod")
                 })
+                if len(searched_results) >= page_size:
+                    return {"searched_results": searched_results}
+        
         return {"searched_results":searched_results}
             
         
