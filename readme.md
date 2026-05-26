@@ -44,9 +44,8 @@ The site includes a cinematic home page, an about section, project demos, JWT-pr
 
 ---
 
-## Why this repo matters
+## Concrete Skills Used:
 
-Recruiters and hiring managers can evaluate concrete skills here, not just bullet points:
 
 - **API design** — Modular FastAPI routers, Pydantic validation, OpenAPI docs at `/docs`
 - **Security** — JWT authentication with password hashing (`passlib`) and protected routes
