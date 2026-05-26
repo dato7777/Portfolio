@@ -173,12 +173,12 @@ export default function Home() {
             </span>
           </h1>
 
-          {/* Bio — reserved height + letter reveal (no scroll jump) */}
-          <div className={`relative mt-6 max-w-2xl ${BIO_TYPO}`}>
+          {/* Bio — reserved height + letter reveal (wraps on small screens) */}
+          <div className={`relative mt-6 w-full max-w-2xl ${BIO_TYPO}`}>
             <LetterRevealPlaceholder text={BIO} className={BIO_TYPO} />
-            <p className={`absolute inset-0 ${BIO_TYPO}`}>
+            <div className={`absolute inset-0 w-full ${BIO_TYPO}`}>
               <LetterReveal text={BIO} onComplete={() => setShowBSD(true)} />
-            </p>
+            </div>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
