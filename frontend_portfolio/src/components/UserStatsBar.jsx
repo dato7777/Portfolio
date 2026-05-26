@@ -1,6 +1,6 @@
 // src/components/UserStatsBar.jsx
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence, px } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export default function UserStatsBar({ stats }) {
@@ -49,12 +49,12 @@ export default function UserStatsBar({ stats }) {
     .sort((a, b) => b.questionsAnswered - a.questionsAnswered);
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 w-full max-w-5xl min-w-0 px-0 sm:px-0">
       {/* Top strip */}
       <motion.div
         className="
           flex flex-col md:flex-row md:items-center md:justify-between 
-          gap-3 px-5 py-3 rounded-2xl 
+          gap-3 px-4 sm:px-5 py-3 rounded-2xl w-full min-w-0 
           bg-white/5 border border-cyan-400/40 
           shadow-[0_0_18px_rgba(0,255,255,0.2)]
           backdrop-blur

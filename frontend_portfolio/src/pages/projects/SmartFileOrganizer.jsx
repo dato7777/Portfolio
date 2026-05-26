@@ -25,7 +25,7 @@ export default function SmartFileOrganizer() {
 
   const progressIntervalRef = useRef(null);
   const statsRef = useRef(null);
-  const hasScrolledToStats = useRef(false); // 👈 prevent double-scroll in StrictMode
+  const scrollToStatsAfterUpload = useRef(false);
 
   // Cleanup interval when unmounting
   useEffect(() => {
@@ -37,20 +37,16 @@ export default function SmartFileOrganizer() {
     };
   }, []);
 
-  // Smooth scroll to stats ONCE when they appear
+  // Scroll to stats only after a successful user upload (not on mount / reset)
   useEffect(() => {
-    if (statsSummary && statsRef.current && !hasScrolledToStats.current) {
-      hasScrolledToStats.current = true;
-
-      // Scroll so the stats card is nicely below the header
-      const rect = statsRef.current.getBoundingClientRect();
-      const offsetTop = rect.top + window.scrollY - 120; // adjust 120px if needed
-
-      window.scrollTo({
-        top: offsetTop,
-        behavior: "smooth",
-      });
+    if (!scrollToStatsAfterUpload.current || !statsSummary || !statsRef.current) {
+      return;
     }
+    scrollToStatsAfterUpload.current = false;
+    const id = requestAnimationFrame(() => {
+      statsRef.current?.scrollIntoView({ behavior: "auto", block: "nearest" });
+    });
+    return () => cancelAnimationFrame(id);
   }, [statsSummary]);
 
   const handleFolderChange = (e) => {
@@ -64,7 +60,7 @@ export default function SmartFileOrganizer() {
 
     setFiles(selectedFiles);
     setStatsSummary(null); // reset last stats
-    hasScrolledToStats.current = false; // reset scroll guard
+    scrollToStatsAfterUpload.current = false;
 
     const first = selectedFiles[0];
     // webkitRelativePath is non-standard but works in Chrome/Edge
@@ -104,7 +100,7 @@ export default function SmartFileOrganizer() {
     setStatus("uploading");
     setMessage("");
     setStatsSummary(null);
-    hasScrolledToStats.current = false; // new run => allow scroll again
+    scrollToStatsAfterUpload.current = false;
     startFakeProgress();
 
     try {
@@ -129,6 +125,7 @@ export default function SmartFileOrganizer() {
       if (headerStats) {
         try {
           const parsed = JSON.parse(headerStats);
+          scrollToStatsAfterUpload.current = true;
           setStatsSummary(parsed);
         } catch (e) {
           console.warn("Could not parse X-File-Stats header:", e);
@@ -173,7 +170,7 @@ export default function SmartFileOrganizer() {
     (statsSummary?.groups ? Object.keys(statsSummary.groups).length : 0);
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-start pt-24 pb-24 px-6 text-white overflow-hidden">
+    <div className="page-full-bleed flex flex-col items-center justify-start page-content-pad text-white overflow-x-hidden w-full">
       {/* Background */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#020617] via-[#020617] to-black" />
       <motion.div
@@ -189,7 +186,7 @@ export default function SmartFileOrganizer() {
         transition={{ duration: 0.7 }}
         className="text-center mb-8"
       >
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-3 text-emerald-300">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-3 text-emerald-300 px-2">
           Smart File Organizer
         </h1>
         <p className="text-sm md:text-base text-slate-200/80 max-w-2xl mx-auto">

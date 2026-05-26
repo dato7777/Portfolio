@@ -1,24 +1,23 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import About from "./pages/About";
+import About from "./pages/about";
 import Home from "./pages/home";
-import MyNavbar from "./components/Navbar"; // This is your Material Tailwind navbar
+import MyNavbar from "./components/Navbar";
 import Projects from "./pages/projects/projects";
 import QuizProAI from "./pages/projects/quizProAi";
 import Weather from "./pages/projects/weather";
-import ScrollToTop from "./pages/projects/ScrollToTop";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Contact from "./pages/Contact";
 import SmartFileOrganizer from "./pages/projects/SmartFileOrganizer";
 import BuySmart from "./pages/projects/BuySmart";
+import ScrollToTop from "./pages/projects/ScrollToTop";
 
 function App() {
   return (
     <Router>
-      {/* Keep navbar outside of container to avoid max-width conflicts */}
+      <ScrollToTop />
       <MyNavbar />
-      <div className="max-w-screen-xl mx-auto px-4 mt-6">
-        {/* <ScrollToTop /> */}
+      <div className="min-h-dvh w-full overflow-x-hidden">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
@@ -31,13 +30,11 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/projects/weather" element={< Weather />} />
-          <Route path="/projects/smartfileorganizer" element={< SmartFileOrganizer />} />
-          <Route path="/projects/buysmart" element={< BuySmart />} />
-          <Route path="/login" element={< Login />} />
-          <Route path="/contact" element={< Contact />} />
-
-          {/* Add more routes like /projects, /contact later */}
+          <Route path="/projects/weather" element={<Weather />} />
+          <Route path="/projects/smartfileorganizer" element={<SmartFileOrganizer />} />
+          <Route path="/projects/buysmart" element={<BuySmart />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/contact" element={<Contact />} />
         </Routes>
       </div>
     </Router>

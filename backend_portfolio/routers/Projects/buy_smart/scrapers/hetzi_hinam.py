@@ -114,6 +114,7 @@ class HetziHinamScraper:
                     url=f"{self.BASE}/catalog/products/{item.get('Id')}/{item.get('BarKod')}/{item.get('Name')}",
                 )
                 searched_results.append({
+                "internal_product_id": p.id,
                 "prod_id":item.get("Id"),
                 "prod_name":item.get("Name"),
                 "prod_img":item.get("Img"),

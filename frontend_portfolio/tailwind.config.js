@@ -13,6 +13,9 @@ module.exports = withMT({
 
   theme: {
     extend: {
+      screens: {
+        nav: "960px",
+      },
       keyframes: {
         flipXOnce: {
           "0%": { transform: "rotateX(0deg)" },

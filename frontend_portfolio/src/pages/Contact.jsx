@@ -46,7 +46,7 @@ const COUNTRY = "Israel";        // optional, just for vibe
 
 export default function Contact() {
   return (
-    <div className="relative min-h-screen text-white flex flex-col items-center justify-start pt-24 pb-32 px-4 overflow-hidden">
+    <div className="page-full-bleed text-white flex flex-col items-center justify-start page-content-pad overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020618] via-[#050015] to-black" />
       <motion.div
@@ -62,7 +62,7 @@ export default function Contact() {
 
       {/* Title */}
       <motion.h1
-        className="text-4xl md:text-6xl font-extrabold tracking-wide text-center drop-shadow-[0_0_25px_rgba(0,255,255,0.4)]"
+        className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-wide text-center drop-shadow-[0_0_25px_rgba(0,255,255,0.4)] px-2"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9 }}
@@ -160,7 +160,7 @@ export default function Contact() {
             <p className="text-xs uppercase tracking-[0.25em] text-cyan-200/80 mb-1">
               Direct Email
             </p>
-            <p className="text-lg md:text-xl font-semibold text-cyan-50">
+            <p className="text-base sm:text-lg md:text-xl font-semibold text-cyan-50 break-all">
               <a
                 href={`mailto:${EMAIL}`}
                 className="underline decoration-cyan-400/70 underline-offset-4 hover:text-cyan-200"

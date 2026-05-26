@@ -27,6 +27,7 @@ export default function QuizProAI() {
 
   const lastEventTimeRef = useRef(null);
   const progressIntervalRef = useRef(null);
+  const quizCompleteScrollRef = useRef(false);
 
   // 🔢 STATS FOR USER – backend is the source of truth, we just mirror it
   const [stats, setStats] = useState({
@@ -47,13 +48,12 @@ export default function QuizProAI() {
       Object.keys(selectedOptions).length === questions.length;
 
     if (!allAnswered) return;
+    if (quizCompleteScrollRef.current) return;
+    quizCompleteScrollRef.current = true;
 
-    // 1) Let user see last answer for ~1.2s
+    // 1) Let user see last answer for ~1.2s, then scroll to top once
     const scrollTimeout = setTimeout(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "auto" });
     }, 1200);
 
     // 2) Reset quiz after total ~3s
@@ -74,6 +74,7 @@ export default function QuizProAI() {
   }, []);
 
   const resetQuiz = () => {
+    quizCompleteScrollRef.current = false;
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
@@ -202,10 +203,7 @@ export default function QuizProAI() {
 
     // Wait for the UI to update, then scroll
     requestAnimationFrame(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "auto" });
     });
   };
 
@@ -276,7 +274,7 @@ export default function QuizProAI() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden text-white flex flex-col items-center justify-start px-6 pb-32 pt-24">
+    <div className="page-full-bleed overflow-hidden text-white flex flex-col items-center justify-start page-content-pad w-full max-w-5xl mx-auto">
       {/* ✨ Background */}
       <div
         className="absolute inset-0 -z-10 bg-gradient-to-br from-[#010516] via-[#13002b] to-[#000814]"
@@ -301,7 +299,7 @@ export default function QuizProAI() {
 
       {/* 🧠 Title */}
       <motion.h1
-        className="z-20 text-5xl md:text-6xl font-extrabold text-center mb-10 tracking-wide drop-shadow-[0_0_25px_rgba(255,255,255,0.3)]"
+        className="z-20 text-3xl sm:text-4xl md:text-6xl font-extrabold text-center mb-8 md:mb-10 tracking-wide drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] px-2"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
@@ -312,7 +310,7 @@ export default function QuizProAI() {
       {/* 🌍 Language Selector */}
       {!fadeOutOthers && !questions.length && (
         <motion.div
-          className="z-20 flex justify-center items-center gap-4 mb-10 backdrop-blur-md bg-white/10 px-6 py-3 rounded-full border border-cyan-400/30 shadow-[0_0_20px_rgba(0,255,255,0.15)]"
+          className="z-20 flex flex-wrap justify-center items-center gap-2 sm:gap-4 mb-10 backdrop-blur-md bg-white/10 px-4 sm:px-6 py-3 rounded-2xl sm:rounded-full border border-cyan-400/30 shadow-[0_0_20px_rgba(0,255,255,0.15)] w-full max-w-xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
@@ -323,7 +321,7 @@ export default function QuizProAI() {
               onClick={() => setLanguage(lang.name)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-2 text-lg font-semibold px-4 py-2 rounded-full transition-all ${language === lang.name
+              className={`flex items-center gap-1.5 sm:gap-2 text-sm sm:text-lg font-semibold px-3 sm:px-4 py-2 rounded-full transition-all ${language === lang.name
                 ? "bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,255,255,0.6)]"
                 : "bg-transparent text-cyan-100 hover:bg-cyan-600/20 border border-cyan-300/30"
                 }`}
@@ -389,7 +387,7 @@ Each item:
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <p className="text-2xl font-semibold text-white mb-6 drop-shadow-lg">
+          <p className="text-lg sm:text-2xl font-semibold text-white mb-6 drop-shadow-lg px-2">
             OR <span className="text-yellow-300">enter your own</span> category:
           </p>
           <div className="relative group flex justify-center">
@@ -398,8 +396,8 @@ Each item:
               value={customCategory}
               onChange={(e) => setCustomCategory(e.target.value)}
               placeholder="Type your custom topic..."
-              className="w-full max-w-lg text-2xl text-center font-bold text-indigo-100 placeholder-indigo-300 
-                         bg-white/10 border-2 border-cyan-400/40 rounded-full px-6 py-4 
+              className="w-full max-w-lg text-lg sm:text-2xl text-center font-bold text-indigo-100 placeholder-indigo-300 
+                         bg-white/10 border-2 border-cyan-400/40 rounded-full px-4 sm:px-6 py-3 sm:py-4 
                          focus:outline-none focus:ring-4 focus:ring-yellow-300/40 
                          focus:border-yellow-300 shadow-md transition-all duration-300"
             />

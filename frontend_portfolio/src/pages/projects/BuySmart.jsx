@@ -12,7 +12,11 @@ export default function BuySmart() {
   const [error, setError] = useState("");
   const [rawResults, setRawResults] = useState(null);
 
-  // Optional categories UI (simple)
+  // history map: { "12": [{day, price, ...}, ...], ... }
+  const [historyByProductId, setHistoryByProductId] = useState({});
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Optional categories UI
   const [catsOpen, setCatsOpen] = useState(false);
   const [catsLoading, setCatsLoading] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -24,15 +28,18 @@ export default function BuySmart() {
   const formatIls = (n) =>
     n == null || Number.isNaN(Number(n)) ? "—" : `₪${Number(n).toFixed(2)}`;
 
+  // "2026-01-13" -> "13/01/26"
+  const formatDDMMYY = (d) => {
+    if (!d) return "";
+    const s = String(d).slice(0, 10); // handles ISO too
+    const [yy, mm, dd] = s.split("-");
+    if (!yy || !mm || !dd) return s;
+    return `${dd}/${mm}/${yy.slice(2)}`;
+  };
+
   const normalizeHetzi = (payload) => {
-    // Backend returns: { query, results: [ ... ] }
-    // Each block might contain: { searched_results: [...] }
     const container = payload?.results?.[0] ?? payload;
-
-    const resultsBlocks = Array.isArray(container?.results)
-      ? container.results
-      : [container];
-
+    const resultsBlocks = Array.isArray(container?.results) ? container.results : [container];
     const ok = container?.IsOK ?? true;
 
     const items = resultsBlocks.flatMap((block) => {
@@ -40,17 +47,22 @@ export default function BuySmart() {
       return arr.map((it) => ({
         source: "hetzi-hinam",
         subCategory: it?.prod_sub_cat_name,
-        id: it?.prod_id,
+        externalId: it?.prod_id, // website product id
+        internalId: it?.internal_product_id, // DB Product.id (used for /prices/history)
         name: it?.prod_name,
         image: it?.prod_img,
         unit: it?.prod_unit_size_desc || "",
         price: it?.prod_price_net ?? it?.prod_price_per_unit ?? null,
         pricePerUnitDesc: it?.prod_price_un_desc || "",
+        unitSize: it?.prod_unit_size || "",
         raw: it,
-        p_link: "https://shop.hazi-hinam.co.il/catalog/products/" +
-          it?.prod_id + "/" +
-          it?.prod_barkod + "/" +
-          it?.prod_name
+        p_link:
+          "https://shop.hazi-hinam.co.il/catalog/products/" +
+          it?.prod_id +
+          "/" +
+          it?.prod_barkod +
+          "/" +
+          it?.prod_name,
       }));
     });
 
@@ -60,44 +72,65 @@ export default function BuySmart() {
       container?.detail ||
       "";
 
-    return {
-      ok: Boolean(ok),
-      items,
-      error: errDesc,
-      raw: container,
-    };
+    return { ok: Boolean(ok), items, error: errDesc, raw: container };
   };
 
   const { normalized, orderedResults } = useMemo(() => {
     if (!rawResults) return { normalized: null, orderedResults: [] };
-
     const hetzi = normalizeHetzi(rawResults);
-
-    // IMPORTANT: keep backend order (no sorting). Just cap how many to show for UI.
-    const ordered = hetzi.items || []
-
-    return {
-      normalized: { hetzi },
-      orderedResults: ordered,
-    };
+    return { normalized: { hetzi }, orderedResults: hetzi.items || [] };
   }, [rawResults]);
 
   // ---- UX hints ----
   useEffect(() => {
-    if (loading) {
-      setHint(`Searching for “${query || "…"}”…`);
-      return;
-    }
-    if (!query) {
-      setHint("Type a product (Hebrew/English) and press Search.");
-      return;
-    }
-    if (rawResults && !error) {
-      setHint(`Results for “${query}”.`);
-      return;
-    }
+    if (loading) return setHint(`Searching for “${query || "…"}”…`);
+    if (!query) return setHint("Type a product (Hebrew/English) and press Search.");
+    if (rawResults && !error) return setHint(`Results for “${query}”.`);
     setHint(`Ready to search “${query}”.`);
   }, [query, loading, rawResults, error]);
+
+  // ---- fetch history after results ----
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!orderedResults || orderedResults.length === 0) {
+        setHistoryByProductId({});
+        return;
+      }
+
+      const productIds = Array.from(
+        new Set(
+          orderedResults
+            .map((p) => p?.internalId)
+            .filter((x) => x != null && x !== "" && !Number.isNaN(Number(x)))
+            .map((x) => Number(x))
+        )
+      );
+
+      if (productIds.length === 0) {
+        setHistoryByProductId({});
+        return;
+      }
+
+      setHistoryLoading(true);
+      try {
+        const res = await axios.get(`${API_BASE}/prices/history`, {
+          params: { product_ids: productIds, min_days: 2, per_product_limit: 6 },
+          paramsSerializer: { indexes: null },
+          timeout: 25000,
+        });
+
+        setHistoryByProductId(res?.data?.history || {});
+      } catch (e) {
+        console.warn("Failed to load price history:", e?.response?.data || e?.message || e);
+        setHistoryByProductId({});
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderedResults]);
 
   // ---- actions ----
   const runSearch = async () => {
@@ -107,6 +140,7 @@ export default function BuySmart() {
     setError("");
     setLoading(true);
     setRawResults(null);
+    setHistoryByProductId({});
 
     try {
       const res = await axios.get(`${API_BASE}/scrapers/search`, {
@@ -117,7 +151,7 @@ export default function BuySmart() {
       setRawResults(res.data);
 
       setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultsRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
       }, 150);
     } catch (e) {
       const msg =
@@ -177,6 +211,46 @@ export default function BuySmart() {
     );
   };
 
+  // Right price column: Price Now + main price + history lines (newest->oldest)
+  const PriceColumn = ({ productId, currentPrice }) => {
+    const snaps =
+      historyByProductId?.[String(productId)] ||
+      historyByProductId?.[productId] ||
+      [];
+
+    return (
+      <div className="text-right shrink-0">
+        <div className="flex items-baseline justify-end gap-2">
+          <div className="text-[11px] uppercase tracking-widest text-yellow-200/70">
+            Price Now
+          </div>
+          <div className="text-xl font-extrabold text-yellow-300">
+            {formatIls(currentPrice)}
+          </div>
+        </div>
+
+        {/* history lines (same size as main price, different color) */}
+        {Array.isArray(snaps) && snaps.length > 0 ? (
+          <div className="mt-2 space-y-1">
+            {snaps.map((s, idx) => (
+              <div
+                key={`${productId}-h-${idx}`}
+                className="flex items-baseline justify-end gap-2"
+              >
+                <div className="text-[11px] text-cyan-200/70 tabular-nums">
+                  {formatDDMMYY(s?.day)}
+                </div>
+                <div className="text-xl font-extrabold text-cyan-200">
+                  {formatIls(s?.price)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const ProductCard = ({ p }) => (
     <motion.div
       whileHover={{ scale: 1.01 }}
@@ -197,73 +271,85 @@ export default function BuySmart() {
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            {/* CHANGED: removed truncate, allow wrap, allow breaking long words */}
             <div className="text-base md:text-lg font-semibold text-cyan-50 whitespace-normal break-words leading-snug">
               {safeText(p.name)}
             </div>
 
-            <div className="text-xs text-cyan-200/70 mt-1">
-              {p.subCategory ? `Category: ${p.subCategory}` : ""}
-              {p.unit ? ` • Unit: ${p.unit}` : ""}
+            <div className="mt-2 text-[12px] text-cyan-200/75 leading-snug flex flex-wrap items-center gap-2">
+              {p.subCategory ? (
+                <span>
+                  קטגוריה: <span className="text-cyan-50/90">{p.subCategory}</span>
+                </span>
+              ) : null}
+
+              {p.subCategory && p.unit ? (
+                <span className="opacity-40">•</span>
+              ) : null}
+
+              {p.unit ? (
+                <span>
+                  סה״כ יחידה/משקל:{" "}
+                  <span className="text-cyan-50/90">
+                    {safeText(p.unitSize)}
+                    {" "}
+                    {safeText(p.unit)}
+                  </span>
+                </span>
+              ) : null}
             </div>
+
+            {p.pricePerUnitDesc ? (
+              <div className="mt-1 text-[12px] text-cyan-200/80">
+                מחיר ממוצע: {p.pricePerUnitDesc}
+              </div>
+            ) : null}
           </div>
 
-          <div className="text-right shrink-0">
-            <div className="text-xs uppercase tracking-widest text-yellow-200/70">
-              Price
-            </div>
-            <div className="text-xl font-extrabold text-yellow-300">
-              {formatIls(p.price)}
-            </div>
-          </div>
+          {/* PRICE AREA (your requested redesign) */}
+          <PriceColumn productId={p.internalId} currentPrice={p.price} />
         </div>
 
-        {p.pricePerUnitDesc ? (
-          <div className="mt-2 text-sm text-cyan-200/80">
-            {p.pricePerUnitDesc}
-          </div>
-        ) : null}
-
+        {/* Compact meta row */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/30 text-cyan-100/80 bg-white/5">
-            Source: {p.source}
+          <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/25 text-cyan-100/75 bg-white/5">
+            {p.source}
           </span>
 
-          {p.id != null && (
-            <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/30 text-cyan-100/80 bg-white/5">
-              ID: {p.id}
+          {p.internalId != null && (
+            <span className="text-[11px] px-2 py-1 rounded-full border border-cyan-300/25 text-cyan-100/75 bg-white/5">
+              ID: {p.internalId}
             </span>
-
           )}
+
           <a
-  href={p.p_link}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="
-    inline-flex items-center justify-center
-    text-[11px] font-semibold
-    px-2 py-1
-    rounded-full
-    border border-cyan-300/40
-    bg-gradient-to-r from-cyan-500/20 to-blue-600/20
-    shadow-[0_0_16px_rgba(0,255,255,0.18)]
-    backdrop-blur-md
-    transition-all duration-300
-    hover:brightness-125 hover:scale-[1.04] hover:shadow-[0_0_24px_rgba(255,255,0,0.22)]
-    active:scale-95
-  "
->
-  Link To Product
-</a>
+            href={p.p_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="
+              inline-flex items-center justify-center
+              text-[11px] font-semibold
+              px-2 py-1
+              rounded-full
+              border border-cyan-300/40
+              bg-gradient-to-r from-cyan-500/20 to-blue-600/20
+              shadow-[0_0_16px_rgba(0,255,255,0.18)]
+              backdrop-blur-md
+              transition-all duration-300
+              hover:brightness-125 hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(255,255,0,0.22)]
+              active:scale-95
+            "
+          >
+            Link
+          </a>
         </div>
       </div>
     </motion.div>
   );
 
   return (
-    <div className="relative min-h-screen text-white overflow-y-auto flex flex-col items-center justify-start pt-24 pb-32">
+    <div className="page-full-bleed text-white overflow-y-auto overflow-x-hidden flex flex-col items-center justify-start page-content-pad w-full">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#020617] via-[#040a20] to-black" />
       <motion.div
         className="absolute -top-32 -left-32 w-[160vw] h-[160vw] rounded-full bg-[radial-gradient(circle_at_center,rgba(30,150,255,0.12)_0%,transparent_70%)] -z-10"
@@ -272,7 +358,7 @@ export default function BuySmart() {
       />
 
       <motion.h1
-        className="text-4xl md:text-6xl font-extrabold mb-4 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.35)]"
+        className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-4 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.35)] px-2"
         initial={{ opacity: 0, y: -18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9 }}
@@ -330,6 +416,7 @@ export default function BuySmart() {
               onClick={() => {
                 setQuery("");
                 setRawResults(null);
+                setHistoryByProductId({});
                 setError("");
                 setHint("Type a product (Hebrew/English) and press Search.");
               }}
@@ -338,8 +425,14 @@ export default function BuySmart() {
             </PillButton>
 
             <div className="px-3 py-1.5 rounded-full border border-cyan-300/30 bg-white/5 text-xs text-cyan-100/70">
-              Sources: {sourceFilter} (UI ready; backend can use later)
+              Sources: {sourceFilter}
             </div>
+
+            {rawResults ? (
+              <div className="px-3 py-1.5 rounded-full border border-cyan-300/30 bg-white/5 text-xs text-cyan-100/70">
+                History: {historyLoading ? "loading…" : "ready"}
+              </div>
+            ) : null}
           </div>
 
           <AnimatePresence>
@@ -436,21 +529,16 @@ export default function BuySmart() {
               <div className="rounded-3xl p-5 bg-white/5 border border-cyan-400/30 backdrop-blur shadow-[0_0_22px_rgba(0,255,255,0.10)]">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-cyan-200/70">
-                      Query
-                    </div>
-                    <div className="text-2xl font-extrabold text-cyan-50">
-                      {query}
-                    </div>
+                    <div className="text-xs uppercase tracking-widest text-cyan-200/70">Query</div>
+                    <div className="text-2xl font-extrabold text-cyan-50">{query}</div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {/* CHANGED: label + count based on orderedResults */}
                     <span className="text-xs px-3 py-1.5 rounded-full border border-yellow-300/40 bg-yellow-400/10 text-yellow-100">
                       Results shown: {orderedResults.length}
                     </span>
                     <span className="text-xs px-3 py-1.5 rounded-full border border-cyan-300/40 bg-cyan-400/10 text-cyan-100">
-                      Source: hetzi-hinam (for now)
+                      Source: hetzi-hinam
                     </span>
                   </div>
                 </div>
@@ -462,11 +550,10 @@ export default function BuySmart() {
                 ) : null}
               </div>
 
-              {/* CHANGED: show orderedResults (backend order) */}
               {orderedResults.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {orderedResults.map((p, idx) => (
-                    <ProductCard key={`${p.id ?? "p"}-${idx}`} p={p} />
+                    <ProductCard key={`${p.internalId ?? "p"}-${idx}`} p={p} />
                   ))}
                 </div>
               ) : (

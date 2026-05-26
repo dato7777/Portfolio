@@ -41,7 +41,7 @@ export default function Projects() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center text-white overflow-hidden">
+    <div className="page-full-bleed flex flex-col items-center justify-center text-white overflow-hidden page-content-pad py-8 sm:py-12">
       {/* 🌌 Background */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0b1120] via-[#0a0f1a] to-black" />
       <motion.div
@@ -55,7 +55,7 @@ export default function Projects() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="text-5xl md:text-6xl font-extrabold mb-4 tracking-wide text-center bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent"
+        className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-4 tracking-wide text-center bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent px-2"
       >
         My Projects
       </motion.h1>

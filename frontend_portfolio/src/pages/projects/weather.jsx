@@ -99,6 +99,7 @@ const [showPopulationDisclaimer, setShowPopulationDisclaimer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hint, setHint] = useState("Choose any option to start.");
   const resultsRef = useRef(null);
+  const scrollToResultsRef = useRef(false);
   // const animatedPopulation = useSmoothCounter(cityData?.city_population);
   // ======== Effects: hints =========
   useEffect(() => {
@@ -168,16 +169,24 @@ useEffect(() => {
     setCityData(null);
     axios
       .get(`${API_URL}/extremes/${continent}`, { params: { region } })
-      .then((res) => setExtremes(res.data))
+      .then((res) => {
+        scrollToResultsRef.current = true;
+        setExtremes(res.data);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [continent, region]);
 
-  // ======== Scroll to results when ready =========
+  // Scroll to results only after a user-driven fetch (not on mount / state resets)
   useEffect(() => {
-    if ((extremes || cityData) && resultsRef.current) {
-      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!scrollToResultsRef.current || !(extremes || cityData) || !resultsRef.current) {
+      return;
     }
+    scrollToResultsRef.current = false;
+    const id = requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
   }, [extremes, cityData]);
 
   // ======== City check =========
@@ -200,6 +209,7 @@ useEffect(() => {
       const res = await axios.get(`${API_URL}/city`, { params: { q }, timeout: 10000 });
       // res.data shape (from your backend):
       // { city, country, lat, lon, temp, humidity, wind, description, icon }
+      scrollToResultsRef.current = true;
       setCityData(res.data);
       setHistoricalProgress(100);
       setTimeout(() => setHistoricalLoading(false), 500);
@@ -227,7 +237,7 @@ useEffect(() => {
       onClick={onClick}
       whileHover={{ scale: 1.04 }}
       whileTap={{ scale: 0.97 }}
-      className="relative w-[260px] md:w-[320px] h-[160px] rounded-2xl overflow-hidden 
+      className="relative w-full max-w-[280px] sm:w-[260px] md:w-[320px] h-[140px] sm:h-[160px] rounded-2xl overflow-hidden 
                  border-2 border-cyan-300/40 bg-white/5 backdrop-blur
                  shadow-[0_0_30px_rgba(0,255,255,0.08)] hover:shadow-[0_0_40px_rgba(0,255,255,0.22)]
                  transition"
@@ -252,7 +262,7 @@ useEffect(() => {
     icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : null;
 
   return (
-    <div id="page-scroll-root" className="relative min-h-screen text-white overflow-y-auto flex flex-col items-center justify-start pt-24 pb-32">
+    <div id="page-scroll-root" className="page-full-bleed text-white overflow-x-hidden flex flex-col items-center justify-start page-content-pad w-full">
       {/* 🌌 Background */}
 
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#020617] via-[#040a20] to-black" />
@@ -264,7 +274,7 @@ useEffect(() => {
 
       {/* Title */}
       <motion.h1
-        className="text-4xl md:text-6xl font-extrabold mb-6 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.4)]"
+        className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-6 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.4)] px-2"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
@@ -319,7 +329,7 @@ useEffect(() => {
                 }}
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.95 }}
-                className={`relative w-44 h-28 md:w-52 md:h-32 rounded-xl overflow-hidden 
+                className={`relative w-32 h-24 sm:w-44 sm:h-28 md:w-52 md:h-32 rounded-xl overflow-hidden 
                   border-2 transition-all duration-300 
                   ${continent === name
                     ? "border-cyan-400 bg-cyan-700/20 shadow-[0_0_25px_rgba(0,200,255,0.6)]"
@@ -392,13 +402,13 @@ useEffect(() => {
           {extremes && (
             <motion.div
               ref={resultsRef}
-              className="flex flex-col md:flex-row items-center gap-12 z-10 mt-6"
+              className="flex flex-col md:flex-row items-center gap-6 md:gap-12 z-10 mt-6 w-full max-w-4xl px-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8 }}
             >
               <motion.div
-                className="backdrop-blur-lg bg-blue-900/70 rounded-3xl px-10 py-8 shadow-[0_0_25px_rgba(0,100,255,0.4)] text-center border border-blue-400/40"
+                className="w-full max-w-sm backdrop-blur-lg bg-blue-900/70 rounded-3xl px-5 sm:px-8 md:px-10 py-6 sm:py-8 shadow-[0_0_25px_rgba(0,100,255,0.4)] text-center border border-blue-400/40"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
@@ -409,7 +419,7 @@ useEffect(() => {
               </motion.div>
 
               <motion.div
-                className="backdrop-blur-lg bg-red-900/70 rounded-3xl px-10 py-8 shadow-[0_0_25px_rgba(255,100,100,0.5)] text-center border border-red-400/40"
+                className="w-full max-w-sm backdrop-blur-lg bg-red-900/70 rounded-3xl px-5 sm:px-8 md:px-10 py-6 sm:py-8 shadow-[0_0_25px_rgba(255,100,100,0.5)] text-center border border-red-400/40"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
@@ -862,10 +872,7 @@ useEffect(() => {
           onClick={() => {
             setCity(c.name);
             checkCity(c.name);
-            document.getElementById("page-scroll-root")?.scrollTo({
-              top: 0,
-              behavior: "smooth",
-            });
+            window.scrollTo({ top: 0, behavior: "auto" });
           }}
           className="
             px-3 py-1.5 rounded-full
@@ -908,10 +915,7 @@ useEffect(() => {
               setLoading(false);
 
               // SCROLL TO TOP
-              document.getElementById("page-scroll-root")?.scrollTo({
-                top: 0,
-                behavior: "smooth",
-              });
+              window.scrollTo({ top: 0, behavior: "auto" });
             }}
 
             className="px-6 py-2.5 rounded-full font-semibold border-2 border-cyan-400/40 bg-white/10
@@ -932,10 +936,7 @@ useEffect(() => {
               setCityData(null);
 
               // SCROLL TO TOP
-              document.getElementById("page-scroll-root")?.scrollTo({
-                top: 0,
-                behavior: "smooth",
-              });
+              window.scrollTo({ top: 0, behavior: "auto" });
             }}
 
             className="px-6 py-2.5 rounded-full font-semibold bg-gradient-to-r from-cyan-500 to-yellow-300 text-black

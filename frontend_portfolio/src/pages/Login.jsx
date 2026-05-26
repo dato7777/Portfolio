@@ -60,7 +60,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center text-white overflow-hidden">
+    <div className="page-full-bleed flex items-center justify-center text-white overflow-hidden px-4 py-8 safe-top safe-bottom">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#020617] via-[#040a20] to-black" />
       <motion.div
@@ -71,7 +71,7 @@ export default function Login() {
 
       {/* Card */}
       <motion.div
-        className="relative z-10 w-full max-w-md px-8 py-10 rounded-3xl bg-white/10 border border-cyan-400/30 backdrop-blur-xl shadow-[0_0_40px_rgba(0,255,255,0.25)]"
+        className="relative z-10 w-full max-w-md px-5 sm:px-8 py-8 sm:py-10 rounded-3xl bg-white/10 border border-cyan-400/30 backdrop-blur-xl shadow-[0_0_40px_rgba(0,255,255,0.25)]"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
