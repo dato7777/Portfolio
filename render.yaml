@@ -7,7 +7,7 @@ services:
     runtime: python
     plan: free
     region: frankfurt
-    branch: main
+    branch: staging
     buildCommand: pip install -r backend_portfolio/requirements.txt
     startCommand: uvicorn backend_portfolio.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
