@@ -1,5 +1,4 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
-# Deploy: Render Dashboard → New → Blueprint → connect this repo
 
 services:
   - type: web
@@ -14,10 +13,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      - key: SQLITE_PATH
-        value: /data/quiz.db
-      - key: BUY_SMART_SQLITE_PATH
-        value: /data/buy_smart.db
+      - key: DATABASE_URL
+        sync: false
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: OPENAI_API_KEY
@@ -28,7 +25,3 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
-    disk:
-      name: portfolio-data
-      mountPath: /data
-      sizeGB: 1

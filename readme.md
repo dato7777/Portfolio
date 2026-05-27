@@ -285,6 +285,7 @@ cp backend_portfolio/.env.example backend_portfolio/.env
 `backend_portfolio/.env`:
 
 ```env
+DATABASE_URL=postgresql://postgres.xxxx:YOUR_PASSWORD@....supabase.com:5432/postgres
 OPENAI_API_KEY=sk-...
 OPENWEATHER_API_KEY=...
 RAPIDAPI_KEY=...
@@ -297,12 +298,15 @@ JWT_SECRET_KEY=your-long-random-secret
 | `OPENWEATHER_API_KEY` | Weather Lab | Yes, for weather data |
 | `RAPIDAPI_KEY` | Weather Lab | Yes, for city geocoding |
 | `JWT_SECRET_KEY` | Auth | Recommended (dev default exists) |
-| `DATABASE_URL` / `SQLITE_PATH` | QuizProAI DB | Optional |
+| `DATABASE_URL` | QuizProAI + Buy Smart (Supabase Postgres) | Yes for persistent data |
+| `BUY_SMART_DATABASE_URL` | Buy Smart only | Optional (defaults to `DATABASE_URL`) |
+| `SQLITE_PATH` / `BUY_SMART_SQLITE_PATH` | Local SQLite fallback | Only if `DATABASE_URL` unset |
 
 **Where to get keys**
 
 | Service | Sign up |
 |---------|---------|
+| Supabase (Postgres) | [supabase.com](https://supabase.com) → Project Settings → Database → URI |
 | OpenAI | [platform.openai.com](https://platform.openai.com/) |
 | OpenWeather | [openweathermap.org/api](https://openweathermap.org/api) |
 | RapidAPI (geocoding) | [rapidapi.com](https://rapidapi.com/) |
@@ -390,9 +394,8 @@ Quick production env vars:
 | Platform | Variable | Example |
 |----------|----------|---------|
 | Vercel | `VITE_API_URL` | `https://portfolio-api.onrender.com` |
+| Render | `DATABASE_URL` | Supabase Postgres URI |
 | Render | `FRONTEND_URL` | `https://your-app.vercel.app` |
-| Render | `SQLITE_PATH` | `/data/quiz.db` |
-| Render | `BUY_SMART_SQLITE_PATH` | `/data/buy_smart.db` |
 
 ---
 

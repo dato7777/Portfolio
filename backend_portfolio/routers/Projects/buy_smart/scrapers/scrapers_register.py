@@ -53,9 +53,9 @@ def register_PriceSnapshot(product_id:int,price:float,unit:str,unit_size:str,pri
     SQLModel.metadata.create_all(engine, tables=[PriceSnapshot.__table__])
     today = datetime.utcnow().date()
     stmt = select(PriceSnapshot).where(
-    PriceSnapshot.product_id == product_id,
-    func.date(PriceSnapshot.timestamp) == str(today),
-)
+        PriceSnapshot.product_id == product_id,
+        func.date(PriceSnapshot.timestamp) == today,
+    )
     print(today)
     with Session(engine) as session:
         existing = session.exec(stmt).first()

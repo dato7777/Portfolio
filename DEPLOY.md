@@ -20,6 +20,7 @@ Step-by-step guide to put the portfolio online using **Vercel** (frontend) and *
 2. Connect repo `dato7777/Portfolio`
 3. Render reads `render.yaml` at the repo root
 4. When prompted, set these **secret** env vars:
+   - `DATABASE_URL` — your Supabase Postgres connection string (see below)
    - `OPENAI_API_KEY`
    - `OPENWEATHER_API_KEY`
    - `RAPIDAPI_KEY`
@@ -42,19 +43,26 @@ Step-by-step guide to put the portfolio online using **Vercel** (frontend) and *
 **Environment variables** (Render → Environment):
 
 ```env
+DATABASE_URL=postgresql://postgres.xxxx:YOUR_PASSWORD@....supabase.com:5432/postgres
 OPENAI_API_KEY=sk-...
 OPENWEATHER_API_KEY=...
 RAPIDAPI_KEY=...
 JWT_SECRET_KEY=<long-random-string>
 FRONTEND_URL=https://your-app.vercel.app
-SQLITE_PATH=/data/quiz.db
-BUY_SMART_SQLITE_PATH=/data/buy_smart.db
 ```
 
-**Persistent disk** (required so SQLite survives redeploys):
+Quiz and Buy Smart share one Supabase database via `DATABASE_URL` (no separate disk needed).
 
-- Mount path: `/data`
-- Size: 1 GB
+---
+
+## Supabase setup (database)
+
+1. [supabase.com](https://supabase.com) → **New project** (Free) — pick **Europe** region if possible
+2. **Project Settings** → **Database** → **Connection string** → **URI** → **Session** mode
+3. Copy the URI and replace `[YOUR-PASSWORD]` with your database password
+4. Paste as `DATABASE_URL` in `backend_portfolio/.env` (local) and in Render (production)
+
+Tables are created automatically when the API starts (`create_all` in `main.py`).
 
 ---
 
@@ -153,7 +161,7 @@ Default `VITE_API_URL=http://127.0.0.1:8000` works without changes.
 | CORS error in browser | Set `FRONTEND_URL` on Render to exact Vercel URL (https, no trailing slash) |
 | API calls still go to localhost | Set `VITE_API_URL` on Vercel and **redeploy** frontend |
 | 502 / slow first request | Render free tier sleeps; first hit wakes the service (~30–60s) |
-| Database empty after redeploy | Attach persistent disk at `/data` and set `SQLITE_PATH` / `BUY_SMART_SQLITE_PATH` |
+| Database empty after redeploy | Set `DATABASE_URL` to Supabase Postgres (data lives in Supabase, not on Render) |
 | Buy Smart no results | Scrapers may block cloud IPs; works locally but not always on Render |
 | React routes 404 on refresh | `frontend_portfolio/vercel.json` rewrites all paths to `index.html` |
 

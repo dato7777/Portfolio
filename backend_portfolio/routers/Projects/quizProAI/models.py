@@ -12,9 +12,9 @@ class Question(SQLModel, table=True):
     question: str
     options_json: str      # we'll store the list of options as JSON text
     correct_answer: str
-    normalized_question:(str|None)
-    is_used:(bool)
-    used_at:(datetime|None)
+    normalized_question: Optional[str] = None
+    is_used: bool = Field(default=False)
+    used_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -22,7 +22,7 @@ class QuizStats(SQLModel, table=True):
     __tablename__ = "quiz_stats"
     id: Optional[int] = Field(default=None, primary_key=True)
     # link to User via foreign key
-    user_id: int = Field(foreign_key="user.id", unique=True, index=True)
+    user_id: int = Field(foreign_key="users.id", unique=True, index=True)
     # raw counts
     questions_answered: int = Field(default=0)
     correct_answers: int = Field(default=0)
@@ -42,6 +42,7 @@ class QuizStats(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class User(SQLModel, table=True):
+    __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     email: str = Field(index=True, unique=True)
