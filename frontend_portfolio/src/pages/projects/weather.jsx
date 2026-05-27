@@ -102,6 +102,23 @@ const [showPopulationDisclaimer, setShowPopulationDisclaimer] = useState(false);
   const [hint, setHint] = useState("Choose any option to start.");
   const resultsRef = useRef(null);
   const scrollToResultsRef = useRef(false);
+  const topRef = useRef(null);
+  const [scrollTopNonce, setScrollTopNonce] = useState(0);
+
+  const requestScrollToTop = () => setScrollTopNonce((n) => n + 1);
+
+  /** Scroll to top after mode switch — must run post-render so layout height is updated. */
+  useEffect(() => {
+    if (scrollTopNonce === 0) return;
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToTop);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [scrollTopNonce]);
   // const animatedPopulation = useSmoothCounter(cityData?.city_population);
   // ======== Effects: hints =========
   useEffect(() => {
@@ -264,7 +281,11 @@ useEffect(() => {
     icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : null;
 
   return (
-    <div id="page-scroll-root" className="page-full-bleed text-white overflow-x-hidden flex flex-col items-center justify-start page-content-pad w-full">
+    <div
+      id="page-scroll-root"
+      className="page-full-bleed text-white overflow-x-hidden flex flex-col items-center justify-start page-content-pad w-full"
+      style={{ overflowAnchor: "none" }}
+    >
       {/* 🌌 Background */}
 
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#020617] via-[#040a20] to-black" />
@@ -276,7 +297,8 @@ useEffect(() => {
 
       {/* Title */}
       <motion.h1
-        className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-6 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.4)] px-2"
+        ref={topRef}
+        className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-6 text-center tracking-wide drop-shadow-[0_0_12px_rgba(0,200,255,0.4)] px-2 scroll-mt-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
@@ -874,7 +896,7 @@ useEffect(() => {
           onClick={() => {
             setCity(c.name);
             checkCity(c.name);
-            window.scrollTo({ top: 0, behavior: "auto" });
+            requestScrollToTop();
           }}
           className="
             px-3 py-1.5 rounded-full
@@ -915,9 +937,7 @@ useEffect(() => {
               setCity("");
               setCityData(null);
               setLoading(false);
-
-              // SCROLL TO TOP
-              window.scrollTo({ top: 0, behavior: "auto" });
+              requestScrollToTop();
             }}
 
             className="px-6 py-2.5 rounded-full font-semibold border-2 border-cyan-400/40 bg-white/10
@@ -936,9 +956,8 @@ useEffect(() => {
               setExtremes(null);
               setCity("");
               setCityData(null);
-
-              // SCROLL TO TOP
-              window.scrollTo({ top: 0, behavior: "auto" });
+              setLoading(false);
+              requestScrollToTop();
             }}
 
             className="px-6 py-2.5 rounded-full font-semibold bg-gradient-to-r from-cyan-500 to-yellow-300 text-black
