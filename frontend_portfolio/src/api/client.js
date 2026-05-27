@@ -1,8 +1,9 @@
 // src/api/client.js
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000", // your FastAPI base URL
+  baseURL: API_BASE_URL,
 });
 
 // 1) Attach token from localStorage to every request

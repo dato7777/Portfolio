@@ -12,7 +12,9 @@ import oceania from "../../assets/continents/oceania.svg";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import PopulationCounter from "../../components/PopulationCounter";
 
-const API_URL = "http://127.0.0.1:8000/weather";
+import { API_BASE_URL } from "../../config/api";
+
+const API_URL = `${API_BASE_URL}/weather`;
 
 const CONTINENTS = [
   { name: "Europe", image: europe },

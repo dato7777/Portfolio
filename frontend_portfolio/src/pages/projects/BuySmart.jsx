@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = "http://127.0.0.1:8000";
+import { API_BASE_URL } from "../../config/api";
+
+const API_BASE = API_BASE_URL;
 
 export default function BuySmart() {
   const [query, setQuery] = useState("");

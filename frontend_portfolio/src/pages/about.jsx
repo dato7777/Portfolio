@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { API_BASE_URL } from "../config/api";
 
 export default function About() {
   const [info, setInfo] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8000/about")
+    fetch(`${API_BASE_URL}/about`)
       .then((res) => {
         if (!res.ok) throw new Error("Could not load profile");
         return res.json();
