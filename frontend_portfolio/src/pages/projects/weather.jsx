@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import MiniGlobe from "../../components/miniGlobe";
+import MiniGlobe from "../../components/MiniGlobe";
 // import SVG image files (not as React components)
 import europe from "../../assets/continents/europe.svg";
 import asia from "../../assets/continents/asia.svg";
