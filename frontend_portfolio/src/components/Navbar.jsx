@@ -10,7 +10,7 @@ import {
 const items = [
   { label: "Home", to: "/", Icon: HomeIcon, mobileLabel: "Home" },
   { label: "Projects", to: "/projects", Icon: Squares2X2Icon, mobileLabel: "Projects" },
-  { label: "About", to: "/about", Icon: UserCircleIcon, mobileLabel: "About" },
+  // { label: "About", to: "/about", Icon: UserCircleIcon, mobileLabel: "About" },
   { label: "Contact", to: "/contact", Icon: EnvelopeIcon, mobileLabel: "Contact" },
 ];
 
@@ -93,8 +93,8 @@ export default function MyNavbar() {
         className="nav:hidden fixed bottom-0 inset-x-0 z-50 safe-bottom pointer-events-none"
         aria-label="Primary mobile"
       >
-        <div className="pointer-events-auto mx-auto mb-3 w-[calc(100%-1.5rem)] max-w-lg">
-          <div className={`${shellClass} grid grid-cols-4 gap-0.5 rounded-2xl p-1.5`}>
+        <div className="pointer-events-auto mb-3 flex justify-center px-3">
+          <div className={`${shellClass} flex items-center justify-center gap-0.5 rounded-2xl p-1.5`}>
             {items.map(({ to, mobileLabel, Icon }) => {
               const active = pathActive(pathname, to);
               return (
@@ -104,7 +104,7 @@ export default function MyNavbar() {
                   end={to === "/"}
                   {...navLinkProps}
                   className={`
-                    flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 transition-all duration-200
+                    flex min-h-[3.25rem] min-w-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 transition-all duration-200 sm:min-w-[5rem]
                     focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-400
                     ${
                       active
