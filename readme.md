@@ -26,6 +26,7 @@
 - [Development workflow](#development-workflow)
 - [Troubleshooting](#troubleshooting)
 - [Contact](#contact)
+- [Deployment](#deployment)
 
 ---
 
@@ -143,7 +144,7 @@ flowchart TB
     BuySmart --> Stores
 ```
 
-**Request flow:** The React app calls FastAPI on `http://127.0.0.1:8000`. CORS is configured for local Vite dev. Database tables are created automatically on startup via FastAPI lifespan hooks.
+**Request flow:** The React app reads `VITE_API_URL` (defaults to `http://127.0.0.1:8000` locally). CORS allows localhost plus `FRONTEND_URL` / `ALLOWED_ORIGINS` from env. Database tables are created automatically on startup via FastAPI lifespan hooks.
 
 ---
 
@@ -193,7 +194,8 @@ NewPortfolio2/
     ├── src/
     │   ├── pages/              # home, about, contact, project demos
     │   ├── components/         # Navbar, LetterReveal, MiniGlobe, …
-    │   └── api/client.js       # Axios instance (FastAPI base URL)
+    │   ├── config/api.js         # VITE_API_URL (shared API base)
+    │   └── api/client.js       # Axios instance
     ├── tailwind.config.js      # Custom `nav: 960px` breakpoint
     └── package.json
 ```
@@ -370,7 +372,27 @@ npm run preview
 | QuizProAI returns 500 | Check `OPENAI_API_KEY` in `backend_portfolio/.env` |
 | Weather returns missing API key | Set `OPENWEATHER_API_KEY` and `RAPIDAPI_KEY` in `.env` |
 | Buy Smart search empty | Scrapers depend on live supermarket sites; try query `חלב` or browse categories |
-| Frontend can't reach API | API base URL is `http://127.0.0.1:8000` in `frontend_portfolio/src/api/client.js` |
+| Frontend can't reach API | Set `VITE_API_URL` in `frontend_portfolio/.env.local` (dev) or Vercel env (prod). See [DEPLOY.md](DEPLOY.md) |
+
+---
+
+## Deployment
+
+Deploy the **React app to Vercel** and the **FastAPI API to Render**:
+
+- Full guide: **[DEPLOY.md](DEPLOY.md)**
+- Backend blueprint: `render.yaml` (Render Web Service + persistent disk)
+- Frontend SPA routing: `frontend_portfolio/vercel.json`
+- Env templates: `backend_portfolio/.env.example`, `frontend_portfolio/.env.example`
+
+Quick production env vars:
+
+| Platform | Variable | Example |
+|----------|----------|---------|
+| Vercel | `VITE_API_URL` | `https://portfolio-api.onrender.com` |
+| Render | `FRONTEND_URL` | `https://your-app.vercel.app` |
+| Render | `SQLITE_PATH` | `/data/quiz.db` |
+| Render | `BUY_SMART_SQLITE_PATH` | `/data/buy_smart.db` |
 
 ---
 

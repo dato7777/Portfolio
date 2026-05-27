@@ -12,6 +12,8 @@ node_modules/
 dist/
 .env.local
 .env.*.local
+frontend_portfolio/.env
+frontend_portfolio/.env.production
 
 # OS / Editor
 .DS_Store
