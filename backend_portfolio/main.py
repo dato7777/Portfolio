@@ -1,16 +1,29 @@
+"""FastAPI entry — load .env before DB modules (see database.py)."""
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
+
 from fastapi import FastAPI
-# from backend_portfolio.routers import about, home # ✅ 'routers' is the folder, 'about' is the file
 from fastapi.middleware.cors import CORSMiddleware
-from backend_portfolio.routers.Projects.quizProAI.quizproai import router as quizproai_router
-from backend_portfolio.routers.Projects.buy_smart.price_compare import router as buy_smart_router
 from contextlib import asynccontextmanager
 from sqlmodel import SQLModel
+import os
+
+from backend_portfolio.routers.Projects.quizProAI.quizproai import router as quizproai_router
+from backend_portfolio.routers.Projects.buy_smart.price_compare import router as buy_smart_router
 from backend_portfolio.db import engine
 from backend_portfolio.buy_smart_db import buy_smart_engine
 from backend_portfolio.routers.Projects.quizProAI.models import (
-Question,QuizStats,User)
+    Question,
+    QuizStats,
+    User,
+)
 from backend_portfolio.routers.Projects.buy_smart.models.scrapers_models import (
-    Source, Product, PriceSnapshot
+    Source,
+    Product,
+    PriceSnapshot,
 )
 from backend_portfolio.routers.Projects.quizProAI import quizproai
 from backend_portfolio.routers.Projects.weather.weather import router as weather_router
@@ -18,11 +31,6 @@ from backend_portfolio.routers.Projects.quizProAI.auth import router as auth_rou
 from backend_portfolio.routers.Projects.quizProAI.quiz_stats import router as quiz_stats_router
 from backend_portfolio.routers.Projects.file_organizer.file_organizer import router as file_organizer_router
 from backend_portfolio.routers.Projects.buy_smart.scrapers.history_api import router as buy_smart_history_router
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv(Path(__file__).resolve().parent / ".env")
 
 LOCAL_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
@@ -39,6 +47,8 @@ def get_cors_origins() -> list[str]:
             if origin and origin not in origins:
                 origins.append(origin)
     return origins
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     SQLModel.metadata.create_all(
@@ -46,7 +56,9 @@ async def lifespan(app: FastAPI):
         tables=[
             Question.__table__,
             QuizStats.__table__,
-            User.__table__])  # auto-init tables
+            User.__table__,
+        ],
+    )
     SQLModel.metadata.create_all(
         buy_smart_engine,
         tables=[
@@ -54,8 +66,9 @@ async def lifespan(app: FastAPI):
             Product.__table__,
             PriceSnapshot.__table__,
         ],
-    ) # auto-init tables
+    )
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
@@ -72,8 +85,7 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 
-# app.include_router(home.router)  # ✅ This line is correct
-# app.include_router(about.router)  # ✅ This line is correct
+
 app.include_router(quizproai_router)
 app.include_router(auth_router)
 app.include_router(weather_router)

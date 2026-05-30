@@ -4,7 +4,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlmodel import create_engine
+
+# Load backend_portfolio/.env before any engine reads os.environ.
+# override=True: file wins over a corrupted shell DATABASE_URL (e.g. bash expands `$` in passwords).
+# On Render there is no .env file — platform env vars are unchanged.
+_ENV_FILE = Path(__file__).resolve().parent / ".env"
+if _ENV_FILE.is_file():
+    load_dotenv(_ENV_FILE, override=True)
 
 
 def normalize_database_url(url: str) -> str:
@@ -57,3 +65,20 @@ def create_sqlmodel_engine(url: str):
         kwargs["pool_pre_ping"] = True
         kwargs["pool_recycle"] = 300
     return create_engine(url, **kwargs)
+
+
+def describe_db_target(url: str) -> str:
+    """Safe one-line summary for logs (no password)."""
+    if is_sqlite_url(url):
+        return f"sqlite ({url.removeprefix('sqlite:///')})"
+    try:
+        from sqlalchemy.engine.url import make_url
+
+        u = make_url(url)
+        host = u.host or "?"
+        port = u.port or 5432
+        database = u.database or "?"
+        user = u.username or "?"
+        return f"postgres {user}@{host}:{port}/{database}"
+    except Exception:
+        return "postgres (connected)"
