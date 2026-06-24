@@ -13,6 +13,10 @@ from backend_portfolio.routers.Projects.quizProAI.auth_utils import (
     verify_password,
     create_access_token,
 )
+from backend_portfolio.routers.Projects.quizProAI.supabase_auth import (
+    SupabaseAuthUser,
+    get_supabase_auth_user,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -21,12 +25,6 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 class SignupRequest(BaseModel):
     username: str
     email: EmailStr
-    auth_id: str
-
-
-class SyncSessionRequest(BaseModel):
-    email: EmailStr
-    auth_id: str
 
 
 class LoginRequest(BaseModel):
@@ -68,15 +66,29 @@ def issue_token_for_user(user: User) -> TokenResponse:
     return TokenResponse(access_token=access_token, username=user.username)
 
 
+def assert_email_matches_token(request_email: str, auth_user: SupabaseAuthUser) -> None:
+    normalized = request_email.lower()
+    if auth_user.email and auth_user.email != normalized:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email does not match the authenticated Supabase session.",
+        )
+
+
 # --------- routes ----------
 @router.post("/signup", response_model=TokenResponse)
-def signup(data: SignupRequest):
+def signup(
+    data: SignupRequest,
+    auth_user: SupabaseAuthUser = Depends(get_supabase_auth_user),
+):
     """
     Create a public.users profile linked to Supabase Auth (auth_id = auth.uid()).
-    Password auth is handled by Supabase on the client before this is called.
+    Requires Authorization: Bearer <supabase_access_token>.
     """
+    assert_email_matches_token(data.email, auth_user)
+
     with Session(engine) as session:
-        if auth_id_taken(session, data.auth_id):
+        if auth_id_taken(session, auth_user.auth_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This account is already registered.",
@@ -88,7 +100,7 @@ def signup(data: SignupRequest):
             )
 
         user = User(
-            auth_id=data.auth_id,
+            auth_id=auth_user.auth_id,
             username=data.username,
             email=data.email,
         )
@@ -99,15 +111,15 @@ def signup(data: SignupRequest):
 
 
 @router.post("/sync", response_model=TokenResponse)
-def sync_session(data: SyncSessionRequest):
+def sync_session(auth_user: SupabaseAuthUser = Depends(get_supabase_auth_user)):
     """
     After Supabase sign-in, load or link the public.users row and return an app JWT.
-    Sets auth_id when an existing row was created before Supabase Auth was wired up.
+    Requires Authorization: Bearer <supabase_access_token>.
     """
     with Session(engine) as session:
-        user = session.exec(select(User).where(User.auth_id == data.auth_id)).first()
-        if user is None:
-            user = session.exec(select(User).where(User.email == data.email)).first()
+        user = session.exec(select(User).where(User.auth_id == auth_user.auth_id)).first()
+        if user is None and auth_user.email:
+            user = session.exec(select(User).where(User.email == auth_user.email)).first()
 
         if user is None:
             raise HTTPException(
@@ -115,20 +127,20 @@ def sync_session(data: SyncSessionRequest):
                 detail="No profile found for this account. Please sign up first.",
             )
 
-        if user.auth_id and user.auth_id != data.auth_id:
+        if user.auth_id and user.auth_id != auth_user.auth_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email is linked to a different auth account.",
             )
 
-        if auth_id_taken(session, data.auth_id, exclude_user_id=user.id):
+        if auth_id_taken(session, auth_user.auth_id, exclude_user_id=user.id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This auth account is already linked to another profile.",
             )
 
         if not user.auth_id:
-            user.auth_id = data.auth_id
+            user.auth_id = auth_user.auth_id
             session.add(user)
             session.commit()
             session.refresh(user)

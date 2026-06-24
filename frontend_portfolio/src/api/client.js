@@ -9,9 +9,12 @@ const api = axios.create({
 // 1) Attach token from localStorage to every request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Do not overwrite an explicit Authorization header (e.g. Supabase session on /auth/signup).
+    if (!config.headers.Authorization) {
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

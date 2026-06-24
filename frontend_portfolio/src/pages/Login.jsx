@@ -6,14 +6,18 @@ import api from "../api/client";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
-async function getAuthUserId() {
-  const { data, error } = await supabase.auth.getUser();
+async function getSupabaseAccessToken() {
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  const authId = data.user?.id;
-  if (!authId) {
+  const token = data.session?.access_token;
+  if (!token) {
     throw new Error("No active Supabase session. Check your email to confirm signup.");
   }
-  return authId;
+  return token;
+}
+
+function supabaseAuthHeader(accessToken) {
+  return { Authorization: `Bearer ${accessToken}` };
 }
 
 export default function Login() {
@@ -47,12 +51,13 @@ export default function Login() {
         });
         if (signUpError) throw signUpError;
 
-        const authId = signUpData.user?.id ?? (await getAuthUserId());
-        const res = await api.post("/auth/signup", {
-          username,
-          email,
-          auth_id: authId,
-        });
+        const supabaseToken =
+          signUpData.session?.access_token ?? (await getSupabaseAccessToken());
+        const res = await api.post(
+          "/auth/signup",
+          { username, email },
+          { headers: supabaseAuthHeader(supabaseToken) }
+        );
         login({ token: res.data.access_token, username: res.data.username ?? username });
       } else {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -61,10 +66,10 @@ export default function Login() {
         });
         if (signInError) throw signInError;
 
-        const authId = signInData.user?.id ?? (await getAuthUserId());
-        const res = await api.post("/auth/sync", {
-          email,
-          auth_id: authId,
+        const supabaseToken =
+          signInData.session?.access_token ?? (await getSupabaseAccessToken());
+        const res = await api.post("/auth/sync", null, {
+          headers: supabaseAuthHeader(supabaseToken),
         });
         login({ token: res.data.access_token, username: res.data.username });
       }
