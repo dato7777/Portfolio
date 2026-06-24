@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
     setUsername("");
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUsername");
+    supabase.auth.signOut().catch(() => {});
   };
 
   const value = {

@@ -15,6 +15,7 @@
     "@material-tailwind/react": "^2.1.10",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
+    "@supabase/supabase-js": "^2.78.0",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.24",
     "react": "^19.1.0",

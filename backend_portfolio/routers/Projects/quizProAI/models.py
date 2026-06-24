@@ -44,7 +44,8 @@ class QuizStats(SQLModel, table=True):
 class User(SQLModel, table=True):
     __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
+    auth_id: Optional[str] = Field(default=None, index=True, unique=True)
     username: str = Field(index=True, unique=True)
     email: str = Field(index=True, unique=True)
-    password_hash: str
+    password_hash: str = Field(default="")
     created_at: datetime = Field(default_factory=datetime.utcnow)
